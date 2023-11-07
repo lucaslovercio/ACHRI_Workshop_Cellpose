@@ -12,6 +12,8 @@ from cellpose.io import imread
 import os
 import matplotlib.pyplot as plt
 import time
+import numpy as np
+from aux_functions.functionPercNorm import functionPercNorm, get_one_channel
 
 ###################################   PARAMETERS   #########################
 
@@ -23,6 +25,7 @@ channels = [[0,0]] #Same channels as training
 diameter = None # Use model diameter
 flag_show = False
 flag_gpu = False
+flag_normalize = True
 
 ##############################################################################
 
@@ -46,6 +49,12 @@ def functionCellposeSegmentation(folder_input, folder_output, path_model_trained
 
         path_image = os.path.join(folder_input, file_image)
         img = imread(path_image)
+        
+        img = get_one_channel(img)
+        #Load image (first channel)
+        if flag_normalize:
+            img = functionPercNorm( np.single(img))
+        
         masks, flows, styles = model_trained.eval(img, diameter=diameter, channels= channels)
         cv2.imwrite(os.path.join(folder_output, file_image + ending_segmentation), masks)
         

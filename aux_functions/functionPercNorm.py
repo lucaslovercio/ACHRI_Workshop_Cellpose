@@ -34,9 +34,9 @@ def functionPercNorm(slice_original_quantile): # Wigert et al 2018
 def main():
     #Read one image, normalize and save
     #------------------PARAMETERS-----------------
-    str_channel = '2'
-    folder_input = '/mnt/DATA/ACHRI/2023-09 Workshop/Yang'
-    file_image = '20x-CSDE1,NEX-B2-P6-HOMO WT-1-4_exported_from_imageJ.tif_channel_'+str_channel+'.tif'
+    str_channel = ''
+    folder_input = ''
+    file_image = ''
     fullpath_tiff = os.path.join(folder_input, file_image)
     nbits = 16
     
