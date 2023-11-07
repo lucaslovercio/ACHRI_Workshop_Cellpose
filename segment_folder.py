@@ -22,17 +22,18 @@ path_model_trained = ''
 channels = [[0,0]] #Same channels as training
 diameter = None # Use model diameter
 flag_show = False
+flag_gpu = False
 
 ##############################################################################
 
 
 def functionCellposeSegmentation(folder_input, folder_output, path_model_trained,\
-                                 channels = [[0,0]], diameter = None, flag_show = False):
+                                 channels = [[0,0]], diameter = None, flag_show = False, flag_gpu = False):
     
     if not os.path.exists(folder_output):
         os.makedirs(folder_output)
 
-    model_trained = models.CellposeModel(pretrained_model=path_model_trained, gpu=False)
+    model_trained = models.CellposeModel(pretrained_model=path_model_trained, gpu=flag_gpu)
     
     file_images = []
     for file in os.listdir(folder_input):
@@ -61,7 +62,7 @@ def functionCellposeSegmentation(folder_input, folder_output, path_model_trained
 
 def main():
     functionCellposeSegmentation(folder_input, folder_output, path_model_trained,\
-                                 channels = channels, diameter = diameter, flag_show = flag_show)
+                                 channels = channels, diameter = diameter, flag_show = flag_show, flag_gpu = flag_gpu)
     
     
 if __name__ == "__main__":
