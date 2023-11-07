@@ -21,7 +21,7 @@ path_model_trained  = ''
 flag_normalize = False
 flag_gpu = False
 channels = [[0,0]] #Same channels as training
-th_size=150
+th_size = 10000
 
 #Change if not desired naming
 csv_output = image_input + '_descriptors.csv'
