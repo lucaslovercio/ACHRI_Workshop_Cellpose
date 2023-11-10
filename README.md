@@ -22,6 +22,15 @@ For a single image, it performs the segmentation, saving the segmentation as a P
 
 Given training and validation data, and candidate diameters and pretrained models, it finds the best model taking into account the Aggregated Jaccard Index.
 
-## Trained architectures
+## Materials
+
+### Trained architectures
 
 https://uofc-my.sharepoint.com/:f:/r/personal/lucasdaniel_lovercio_ucalgary_ca/Documents/Cellpose_pretrained_models
+
+### Required libraries
+
+cellpose
+matplotlib
+scikit-image
+
