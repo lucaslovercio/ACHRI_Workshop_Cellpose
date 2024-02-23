@@ -33,4 +33,5 @@ https://uofc-my.sharepoint.com/:f:/r/personal/lucasdaniel_lovercio_ucalgary_ca/D
 cellpose
 matplotlib
 scikit-image
-
+pandas
+csv
