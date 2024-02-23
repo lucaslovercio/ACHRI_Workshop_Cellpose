@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from cellpose.io import imread
 import numpy as np
 import csv
+import pandas
 
 ###################################   PARAMETERS   #########################
 
@@ -24,18 +25,32 @@ th_size = 10000
 ##############################################################################
 
 class CellProperty:
-  def __init__(self, xCentroid, yCentroid,label, area, perimeter, eccentricity):
+  def __init__(self, xCentroid, yCentroid,label, area, perimeter, eccentricity, compactness, bbox):
     self.xCentroid = xCentroid
     self.yCentroid = yCentroid
     self.label = label
     self.area = area
     self.perimeter = perimeter
     self.eccentricity = eccentricity
+    self.compactness = compactness
+    self.bbox = bbox
+  
+  def to_dict(self):
+    return {
+        'xCentroid': self.xCentroid,
+        'yCentroid': self.yCentroid,
+        'label': self.label,
+        'area': self.area,
+        'perimeter': self.perimeter,
+        'eccentricity': self.eccentricity,
+        'compactness': self.compactness,
+    }
+
+def get_compactness(area, perimeter):
+    compactness = (4. * np.pi * area.astype('float')) / (perimeter.astype('float') * perimeter.astype('float') + 0.0000001)
+    return compactness
 
 def get_props_per_cell(img_segmentation):
-    # print('Getting properties of cells')
-    # print(type(img_segmentation))
-    # print(img_segmentation.shape)
     
     regions = measure.regionprops(img_segmentation)
     regionprops_selected = []
@@ -43,15 +58,12 @@ def get_props_per_cell(img_segmentation):
         
         binary_image = np.where(img_segmentation == region.label,1,0)
         perimeter = measure.perimeter(binary_image, neighborhood=8)
+        compactness = get_compactness(region.area, region.perimeter)
         #y is first dimension, x is second dimension
-        cell_property = CellProperty(region.centroid[1], region.centroid[0], region.label, region.area, perimeter, region.eccentricity)
+        cell_property = CellProperty(region.centroid[1], region.centroid[0], region.label, region.area, perimeter, region.eccentricity, compactness, region.bbox)
         regionprops_selected.append(cell_property)
     
     return regionprops_selected
-
-def get_compactness(area, perimeter):
-    compactness = (4. * np.pi * area.astype('float')) / (perimeter.astype('float') * perimeter.astype('float'))
-    return compactness
     
 def detect_big_cells(cell_props, th_size=9000):
     vector_area_per_cell = []
@@ -64,7 +76,6 @@ def detect_big_cells(cell_props, th_size=9000):
     big_cells = np.asarray(vector_area_per_cell) > th_size
     big_cells = np.nonzero(big_cells)
     big_cells_idx = np.take(vector_idx,big_cells)
-    #big_cells_idx = vector_idx[np.nonzero(big_cells)] #O (background) is not in cellprops list
     big_cells_idx = big_cells_idx[0] #+ 1
     
     return vector_area_per_cell, big_cells_idx
@@ -76,10 +87,9 @@ def list_cells(cell_props, csv_output):
         writer.writeheader()
     
         for cell_prop in cell_props:
-            compactness = get_compactness(cell_prop.area, cell_prop.perimeter)
             writer.writerow({'Label': str(cell_prop.label), 'xCentroid': str(cell_prop.xCentroid), 'yCentroid': str(cell_prop.yCentroid),\
                              'Area':  str(cell_prop.area), 'Perimeter':  str(cell_prop.perimeter), 'Eccentricity':  str(cell_prop.eccentricity),\
-                                 'Compactness':  str(compactness)})
+                                 'Compactness':  str(cell_prop.compactness)})
             
                 
 def detect_not_rounded_cells(cell_props, th_compactness = 0.46):
@@ -87,10 +97,7 @@ def detect_not_rounded_cells(cell_props, th_compactness = 0.46):
     vector_compactness_per_cell = []
     vector_idx = []
     for cell_prop in cell_props:
-        area = cell_prop.area
-        perimeter = cell_prop.perimeter
-        
-        compactness = get_compactness(area, perimeter)
+        compactness = cell_prop.compactness
         vector_compactness_per_cell.append(compactness)
         
         vector_idx.append(cell_prop.label)
@@ -109,6 +116,109 @@ def get_img_from_idx_cells(img_segmentation, list_idx):
         img_result = np.where(img_segmentation == i_cell,img_segmentation,img_result)
         
     return img_result
+
+def matching_label_pairs(matrix1, matrix2, min_pixels = 0):
+    # Convert matrices to NumPy arrays
+    array1 = np.array(matrix1)
+    array2 = np.array(matrix2)
+
+    unique_labels_matrix1 = np.unique(array1)
+    
+    # Initialize a list to store matching label pairs
+    matching_pairs = []
+
+    # Iterate over unique labels in matrix1
+    for label1 in unique_labels_matrix1:
+        # Find indices where the label appears in matrix1
+        indices_matrix1 = np.where(array1 == label1)
+
+        # Extract corresponding labels from matrix2
+        corresponding_labels_matrix2 = array2[indices_matrix1]
+
+        # Iterate over unique labels in matrix2 corresponding to label1 in matrix1
+        for label2 in np.unique(corresponding_labels_matrix2):
+            
+            n_pixels= np.count_nonzero(corresponding_labels_matrix2 == label2)
+            if n_pixels>min_pixels:
+                matching_pairs.append((label1, label2))
+            
+    matching_pairs_non_zero_left = [elem for elem in matching_pairs if elem[0] != 0]
+    matching_pairs_non_zero = [elem for elem in matching_pairs if (elem[0] != 0 and elem[1] != 0)]
+
+    return matching_pairs, matching_pairs_non_zero_left, matching_pairs_non_zero
+
+def get_correspondance_segmentations(img_segmentation_a, img_segmentation_b, min_pixels_matching=0):
+        
+    #Correspondance nuclei to cell
+    matching_pairs_a_to_b, matching_pairs_a_to_b_non_zero_left, matching_pairs_a_to_b_non_zero =\
+        matching_label_pairs(img_segmentation_a, img_segmentation_b, min_pixels=min_pixels_matching)
+    
+    a_labels = np.array(matching_pairs_a_to_b_non_zero)[:, 0]
+    unique_values_a_to_b, indices, counts = np.unique(a_labels, return_index=True, return_counts=True)
+    #Repeated a labels
+    repeated_indices = indices[counts > 1]
+    a_labels_repeated = a_labels[repeated_indices]
+    pairs_a_to_b_non_zero_repeated_binary = np.isin(a_labels, a_labels_repeated).astype(int)
+    matching_pairs_a_to_b_non_zero_repeated = [matching_pairs_a_to_b_non_zero[i] for i in np.nonzero(pairs_a_to_b_non_zero_repeated_binary>0)[0]]
+    
+    #print(matching_pairs_nuclei_to_membrane_non_zero_repeated)
+    #Plot
+    
+    # Left only nuclei and cells listed as with multiple nuclei
+    mask = np.isin(img_segmentation_a, a_labels_repeated)
+    img_segmentation_a_modified = np.where(mask, img_segmentation_a, 0)
+    
+    b_labels = np.array(matching_pairs_a_to_b_non_zero_repeated)[:, 1]
+    mask = np.isin(img_segmentation_b, b_labels)
+    img_segmentation_b_modified = np.where(mask, img_segmentation_b, 0)
+    
+    return img_segmentation_a_modified, img_segmentation_b_modified, a_labels_repeated
+
+def get_join_properties(matching_pairs_a_to_b, props_a, props_b, suffixes=['_x', '_y']):
+    
+    df_a = pandas.DataFrame.from_records([a1.to_dict() for a1 in props_a])
+    df_b = pandas.DataFrame.from_records([b1.to_dict() for b1 in props_b])
+    df_a_b = pandas.DataFrame(matching_pairs_a_to_b,columns=["a", "b"])
+    
+    #resultdf=df_a.merge(df_b,how="inner",on="label")
+    
+    df_merge_a = df_a_b.merge(df_a, how='inner', on=None, left_on='a', right_on='label', suffixes=[suffixes[0],'_aux'])
+    
+    df_merge_n_n = df_merge_a.merge(df_b, how='inner', on=None, left_on='b', right_on='label', suffixes=suffixes)
+    
+    return df_merge_n_n
+
+
+def get_cells_in_edges(cell_props_membrane, n_row, n_col):
+    vector_labels_in_edge = []
+    
+    for cell_prop in cell_props_membrane:
+        (min_row, min_col, max_row, max_col) = cell_prop.bbox
+        
+        if min_row <=0 or min_col <= 0 or max_row >= n_row or max_col >= n_col:
+            vector_labels_in_edge.append(cell_prop.label)
+    
+    return vector_labels_in_edge
+
+def delete_cells_in_edges(cell_props_membrane, vector_labels_in_edge):
+    cell_props_membrane_not_in_edge = []
+    
+    for cell_prop in cell_props_membrane:
+        if cell_prop.label in vector_labels_in_edge:
+            cell_props_membrane_not_in_edge.append(cell_prop)
+    
+    return cell_props_membrane_not_in_edge
+
+def delete_nuclei_of_cells_in_edges(matching_nuclei_membrane):
+    #print(matching_nuclei_membrane)
+    vector_pos_nuclei_to_delete = []
+    vector_pos_nuclei_to_keep = []
+    for pair in matching_nuclei_membrane:
+        if pair[1]==0: #It means the nuclei matches background of the image
+            vector_pos_nuclei_to_delete.append(pair[0])
+        else:
+            vector_pos_nuclei_to_keep.append(pair[0])
+    return vector_pos_nuclei_to_delete, vector_pos_nuclei_to_keep
 
 def main():
     

@@ -6,16 +6,20 @@ Created on Mon Feb  5 14:47:06 2024
 @author: lucas
 """
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from cellpose.io import imread
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.append(root_path)
 from quantify_segmentation import get_correspondance_segmentations
 from aux_functions.functionPercNorm import functionPercNorm, get_one_channel
 
+
 ###################################   PARAMETERS   #########################
 folder = ''
-input_nuclei    = folder + 'dapi_4.jpg'
-input_membrane  = folder + 'membrane_4.jpg'
+input_nuclei    = folder + 'dapi_5.jpg'
+input_membrane  = folder + 'membrane_5.jpg'
 
 #Only to re-compute for visualization. It does not produce the files again
 min_pixels_matching = 1500

@@ -11,7 +11,9 @@ import cv2
 import numpy as np
 from cellpose import models
 from cellpose.io import imread
-from show_nuclei_membrane_segmentation import figure_segmentation_matching_results
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.append(root_path)
+from projects.placenta.show_nuclei_membrane_segmentation import figure_segmentation_matching_results
 from quantify_segmentation import get_props_per_cell,\
     matching_label_pairs, get_join_properties, get_correspondance_segmentations,\
         get_cells_in_edges, delete_cells_in_edges, delete_nuclei_of_cells_in_edges, list_cells#, detect_big_cells
