@@ -220,6 +220,19 @@ def delete_nuclei_of_cells_in_edges(matching_nuclei_membrane):
             vector_pos_nuclei_to_keep.append(pair[0])
     return vector_pos_nuclei_to_delete, vector_pos_nuclei_to_keep
 
+def get_density_bins(cell_props, img_width, img_height, axis=1, n_bins=20):
+    vector_axis_pos = []
+    
+    for cell_prop in cell_props:
+        if axis==0:
+            vector_axis_pos.append(cell_prop.xCentroid)
+        else:
+            vector_axis_pos.append(cell_prop.yCentroid)
+    #vector_axis_pos = np.unique(vector_axis_pos)
+            
+    count, edges = np.histogram(vector_axis_pos, bins=n_bins, range=(0, img_height))
+    return count, edges
+
 def main():
     
     file_images = []
