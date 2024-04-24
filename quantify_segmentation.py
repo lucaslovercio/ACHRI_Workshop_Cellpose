@@ -233,6 +233,17 @@ def get_density_bins(cell_props, img_width, img_height, axis=1, n_bins=20):
     count, edges = np.histogram(vector_axis_pos, bins=n_bins, range=(0, img_height))
     return count, edges
 
+def get_centroids(cell_props, bbox = None):
+    list_centroids = []
+    for cell_prop in cell_props:
+        if bbox is None:
+            list_centroids.append([cell_prop.xCentroid,cell_prop.yCentroid])
+        else:
+            xmin, ymin, xmax, ymax = bbox
+            if xmin <= cell_prop.xCentroid < xmax and ymin <= cell_prop.yCentroid < ymax:
+                list_centroids.append([cell_prop.xCentroid,cell_prop.yCentroid])
+    return list_centroids
+
 def main():
     
     file_images = []
