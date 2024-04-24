@@ -24,11 +24,11 @@ path_model_trained_C4  = ''#'Neurons_C4.909737'
 flag_normalize = False
 flag_gpu = False
 
-#Width for compute nuclei in edges
+#Width for compute nuclei in edges for the table edge_fitting
 subimage_width = 100
 
 #Side of the Square for morisita index for the table dispersion_indexes
-d_morisita = 100
+d_morisita = 150
 
 # Optional parameters for linear fitting of edge
 flag_text = True #If show the error of the linear fitting
@@ -50,8 +50,11 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from cellpose import models
-from quantify_segmentation import get_props_per_cell, get_density_bins
+from quantify_segmentation import get_props_per_cell
 from aux_functions.functionPercNorm import functionPercNorm
+from analyze_neuron_layers import get_layer_nuclei, get_top_cells_labels,\
+    get_different_fittings, plot_cells, plot_nuclei_segmentations, fit_cells, get_distribution_histograms
+from distribution_indexes import generate_distribution_indexes
 import pandas as pd
 from scipy import ndimage
 import cv2

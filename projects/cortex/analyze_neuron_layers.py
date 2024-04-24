@@ -163,7 +163,7 @@ def get_layer_nuclei(nuclei_segmentation, subimage_width = 100, flag_show = Fals
         plt.imshow(combined_mask)
         plt.title('combined_mask')
         plt.axis('off')
-        plt.show()
+        #plt.show()
     
     #Deletion of outliers
     not_outlier_nuclei = np.where(combined_mask,nuclei_segmentation,0)
@@ -182,7 +182,7 @@ def get_layer_nuclei(nuclei_segmentation, subimage_width = 100, flag_show = Fals
         plt.imshow(top_edge)
         plt.title('top_edge')
         plt.axis('off')
-        plt.show()
+        #plt.show()
     
     layer_nuclei = np.where(combined_mask,nuclei_segmentation,0)
     
@@ -276,7 +276,7 @@ def plot_nuclei_segmentations(C1_original, C2_original, C3_original, C4_original
     figManager.window.showMaximized()
     
     #plt.figure(figsize=(8, 6))
-    plt.show()
+    #plt.show()
     
     # Save the plot to a PNG file
     if path_to_save is not None:
@@ -326,7 +326,7 @@ def get_distribution_histograms(cell_props_C1, cell_props_C2, cell_props_C3, cel
         
     figManager.window.showMaximized()
     #plt.figure(figsize=(8, 6))
-    plt.show()
+    #plt.show()
 
     # Save the plot to a PNG file
     #plt.savefig(os.path.join(folder_output, sample_name + '_histograms.png'), dpi=300)
@@ -360,7 +360,7 @@ def get_different_fittings(numpydata_C1_segmentation, numpydata_C2_segmentation_
     C4_list_std_err = []
     
     for subimage_width in subimage_widths:
-        print('subimage_width: ' + str(subimage_width))
+        # print('subimage_width: ' + str(subimage_width))
         #C1_layer_nuclei = get_layer_nuclei(numpydata_C1_segmentation, subimage_width = subimage_width, flag_show = False)
         C2_layer_nuclei = get_layer_nuclei(numpydata_C2_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
         C3_layer_nuclei = get_layer_nuclei(numpydata_C3_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)

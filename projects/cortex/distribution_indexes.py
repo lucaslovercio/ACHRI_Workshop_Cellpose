@@ -8,6 +8,10 @@ Created on Thu Apr 11 14:16:14 2024
 import numpy as np
 from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
+import os
+import sys
+root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.append(root_path)
 from quantify_segmentation import get_centroids
 import pandas as pd
 import random
@@ -274,7 +278,7 @@ def generate_distribution_indexes(dims, cell_props_C1, cell_props_C2, cell_props
     plt.title('C4 Random')
     
     # Show plot
-    plt.show()
+    #plt.show()
 
 
     # Plot different morisita indexes    
@@ -302,7 +306,7 @@ def generate_distribution_indexes(dims, cell_props_C1, cell_props_C2, cell_props
     plt.ylim(0.75, 1.25)
     plt.xlabel('Quadrant size')
     plt.ylabel('Morisita index')
-    plt.show()
+    #plt.show()
 
     return df_distribution_indexes, morisita_handle
  
