@@ -6,7 +6,7 @@
 ############################################################################
 
 #File path to .tif or .tiff file with a stitched stack of IHC images
-tiff_path = '' #.tif file
+tiff_path = '' #.tif file #In Windows, place an r before the ''
 
 # Number of channels in tiff stack
 n_channels = 4
@@ -15,10 +15,10 @@ n_channels = 4
 n_bins = 20
 
 #Path to trained architectures
-path_model_trained_C1  = ''#'Neurons_C1.183326'
-path_model_trained_C2  = ''#'Neurons_C2.919883'
-path_model_trained_C3  = ''#'Neurons_C3.981474'
-path_model_trained_C4  = ''#'Neurons_C4.909737'
+path_model_trained_C1  = ''#'Neurons_C1.183326' #In Windows, place an r before the ''
+path_model_trained_C2  = ''#'Neurons_C2.919883' #In Windows, place an r before the ''
+path_model_trained_C3  = ''#'Neurons_C3.981474' #In Windows, place an r before the ''
+path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before the ''
 
 #Parameters for running the segmentation
 flag_normalize = False

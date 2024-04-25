@@ -53,7 +53,8 @@ def detect_transition_mask(mask, shift = 1):
 
 def create_mask_from_center_of_mass(subimage, center_of_mass, std_deviation):
     if center_of_mass is None or std_deviation is None:
-        return None
+        mask = np.zeros_like(subimage)
+        return mask
 
     mask = np.zeros_like(subimage)
     center_y = int(round(center_of_mass))
@@ -273,7 +274,8 @@ def plot_nuclei_segmentations(C1_original, C2_original, C3_original, C4_original
     
     figManager = plt.get_current_fig_manager()
         
-    figManager.window.showMaximized()
+    #figManager.frame.Maximize(True)    
+    #figManager.window.showMaximized()
     
     #plt.figure(figsize=(8, 6))
     #plt.show()
@@ -323,8 +325,10 @@ def get_distribution_histograms(cell_props_C1, cell_props_C2, cell_props_C3, cel
     plt.gca().set_title('C4')
 
     figManager = plt.get_current_fig_manager()
-        
-    figManager.window.showMaximized()
+    
+    #mng = plt.get_current_fig_manager()
+    #figManager.frame.Maximize(True)    
+    #figManager.window.showMaximized()
     #plt.figure(figsize=(8, 6))
     #plt.show()
 

@@ -115,7 +115,7 @@ def get_morisita_index(points, bbox, dx, dy):
     
     den1 = num2 * num2
     den2 = num2
-    I = Q * ( (num1 - num2) / (den1 - den2) )
+    I = Q * ( (num1 - num2) / (den1 - den2 + 0.000000000001) )
     return I
 
 def generate_random_points(bbox, n):
@@ -134,7 +134,6 @@ def get_morisita_index_succession(points, bbox, d_start = 50, d_step = 50, d_end
     list_morisita = []
     
     for d in windows:
-    
         morisita_index_temp = get_morisita_index(points, bbox, d, d)
         list_morisita.append(morisita_index_temp)
         
