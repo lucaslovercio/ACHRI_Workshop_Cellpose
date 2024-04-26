@@ -389,10 +389,12 @@ def get_different_fittings_center_of_mass(numpydata_C1_segmentation, numpydata_C
     C2_list_std_err = []
     C3_list_std_err = []
     C4_list_std_err = []
+    C1_list_std_err = []
     
     C2_list_r_value = []
     C3_list_r_value = []
     C4_list_r_value = []
+    C1_list_r_value = []
     
     for subimage_width in subimage_widths:
         #print('subimage_width: ' + str(subimage_width))
@@ -400,34 +402,41 @@ def get_different_fittings_center_of_mass(numpydata_C1_segmentation, numpydata_C
         C2_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C2_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
         C3_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C3_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
         C4_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C4_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
-    
+        C1_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C1_segmentation, subimage_width = subimage_width, flag_show = False)
+        
+        C1_top_cell_labels, C1_top_cells_xy = get_top_cells_labels(C1_layer_nuclei, subimage_width = subimage_width)        
         C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width)
         C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_layer_nuclei, subimage_width = subimage_width)
         C2_top_cell_labels, C2_top_cells_xy = get_top_cells_labels(C2_layer_nuclei, subimage_width = subimage_width)
-        
+
+        C1_top_slope, C1_top_intercept, C1_top_r_value, C1_top_p_value, C1_top_std_err = fit_cells(C1_top_cells_xy)        
         C2_top_slope, C2_top_intercept, C2_top_r_value, C2_top_p_value, C2_top_std_err = fit_cells(C2_top_cells_xy)
         C3_top_slope, C3_top_intercept, C3_top_r_value, C3_top_p_value, C3_top_std_err = fit_cells(C3_top_cells_xy)
         C4_top_slope, C4_top_intercept, C4_top_r_value, C4_top_p_value, C4_top_std_err = fit_cells(C4_top_cells_xy)
-        
+
+        C1_list_std_err.append(C1_top_std_err)        
         C2_list_std_err.append(C2_top_std_err)
         C3_list_std_err.append(C3_top_std_err)
         C4_list_std_err.append(C4_top_std_err)
-        
+
+        C1_list_r_value.append(C1_top_r_value)        
         C2_list_r_value.append(C2_top_r_value)
         C3_list_r_value.append(C3_top_r_value)
         C4_list_r_value.append(C4_top_r_value)
         
-    return subimage_widths, C2_list_std_err, C3_list_std_err, C4_list_std_err, C2_list_r_value, C3_list_r_value, C4_list_r_value
+    return subimage_widths, C1_list_std_err, C2_list_std_err, C3_list_std_err, C4_list_std_err, C1_list_r_value, C2_list_r_value, C3_list_r_value, C4_list_r_value
 
 def get_different_fittings_histogram(numpydata_C1_segmentation, numpydata_C2_segmentation_match_nuclei, numpydata_C3_segmentation_match_nuclei, numpydata_C4_segmentation_match_nuclei,
                                      C1_bins, C2_bins, C3_bins, C4_bins,\
                                          d_start = 50, d_step = 10, d_end = 120):
 
     subimage_widths = np.arange(d_start, d_end+1, d_step)
+    C1_list_std_err = []
     C2_list_std_err = []
     C3_list_std_err = []
     C4_list_std_err = []
-    
+
+    C1_list_r_value = []    
     C2_list_r_value = []
     C3_list_r_value = []
     C4_list_r_value = []
@@ -435,27 +444,32 @@ def get_different_fittings_histogram(numpydata_C1_segmentation, numpydata_C2_seg
     for subimage_width in subimage_widths:
         #print('subimage_width: ' + str(subimage_width))
         #C1_layer_nuclei = get_layer_nuclei(numpydata_C1_segmentation, subimage_width = subimage_width, flag_show = False)
+        C1_layer_nuclei = get_layer_nuclei_histogram(numpydata_C1_segmentation, C1_bins)
         C2_layer_nuclei = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, C2_bins)
         C3_layer_nuclei = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, C3_bins)
         C4_layer_nuclei = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, C4_bins)
-    
+
+        C1_top_cell_labels, C1_top_cells_xy = get_top_cells_labels(C1_layer_nuclei, subimage_width = subimage_width)    
         C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width)
         C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_layer_nuclei, subimage_width = subimage_width)
         C2_top_cell_labels, C2_top_cells_xy = get_top_cells_labels(C2_layer_nuclei, subimage_width = subimage_width)
-        
+
+        C1_top_slope, C1_top_intercept, C1_top_r_value, C1_top_p_value, C1_top_std_err = fit_cells(C1_top_cells_xy)        
         C2_top_slope, C2_top_intercept, C2_top_r_value, C2_top_p_value, C2_top_std_err = fit_cells(C2_top_cells_xy)
         C3_top_slope, C3_top_intercept, C3_top_r_value, C3_top_p_value, C3_top_std_err = fit_cells(C3_top_cells_xy)
         C4_top_slope, C4_top_intercept, C4_top_r_value, C4_top_p_value, C4_top_std_err = fit_cells(C4_top_cells_xy)
-        
+
+        C1_list_std_err.append(C1_top_std_err)        
         C2_list_std_err.append(C2_top_std_err)
         C3_list_std_err.append(C3_top_std_err)
         C4_list_std_err.append(C4_top_std_err)
-        
+
+        C1_list_r_value.append(C1_top_r_value)        
         C2_list_r_value.append(C2_top_r_value)
         C3_list_r_value.append(C3_top_r_value)
         C4_list_r_value.append(C4_top_r_value)
         
-    return subimage_widths, C2_list_std_err, C3_list_std_err, C4_list_std_err, C2_list_r_value, C3_list_r_value, C4_list_r_value
+    return subimage_widths, C1_list_std_err, C2_list_std_err, C3_list_std_err, C4_list_std_err, C1_list_r_value, C2_list_r_value, C3_list_r_value, C4_list_r_value
 
     
 
