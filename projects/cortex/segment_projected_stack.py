@@ -20,6 +20,7 @@ path_model_trained_C2  = ''#'Neurons_C2.919883' #In Windows, place an r before t
 path_model_trained_C3  = ''#'Neurons_C3.981474' #In Windows, place an r before the ''
 path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before the ''
 
+
 #Parameters for running the segmentation
 flag_normalize = False
 flag_gpu = False
@@ -31,6 +32,7 @@ subimage_width = 100
 d_morisita = 150
 
 # Optional parameters for linear fitting of edge
+flag_histbins_for_outliers = True
 flag_text = True #If show the error of the linear fitting
 text_shift = 60 # How much above the linear fitting the text can go
 fitting_color = 'green' # Color of line and text
@@ -52,8 +54,8 @@ import matplotlib.pyplot as plt
 from cellpose import models
 from quantify_segmentation import get_props_per_cell
 from aux_functions.functionPercNorm import functionPercNorm
-from analyze_neuron_layers import get_layer_nuclei, get_top_cells_labels,\
-    get_different_fittings, plot_cells, plot_nuclei_segmentations, fit_cells, get_distribution_histograms
+from analyze_neuron_layers import get_layer_nuclei_histogram, get_layer_nuclei_center_of_mass, get_top_cells_labels,\
+    get_different_fittings_center_of_mass, get_different_fittings_histogram, plot_cells, plot_nuclei_segmentations, fit_cells, get_distribution_histograms
 from distribution_indexes import generate_distribution_indexes
 import pandas as pd
 from scipy import ndimage
@@ -295,11 +297,16 @@ def main():
     cv2.imwrite(C4_segmentation_output, numpydata_C4_segmentation_match_nuclei)
     
     # Analyzing neural layer edge on the top
-    
-    C1_layer_nuclei = get_layer_nuclei(numpydata_C1_segmentation, subimage_width = subimage_width, flag_show = False)
-    C2_layer_nuclei = get_layer_nuclei(numpydata_C2_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
-    C3_layer_nuclei = get_layer_nuclei(numpydata_C3_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
-    C4_layer_nuclei = get_layer_nuclei(numpydata_C4_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
+    if flag_histbins_for_outliers:
+        C1_layer_nuclei = get_layer_nuclei_histogram(numpydata_C1_segmentation, count_C1)
+        C2_layer_nuclei = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, count_C2)
+        C3_layer_nuclei = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, count_C3)
+        C4_layer_nuclei = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, count_C4)
+    else:
+        C1_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C1_segmentation, subimage_width = subimage_width, flag_show = False)
+        C2_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C2_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
+        C3_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C3_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
+        C4_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C4_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
     
     C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width)
     C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_layer_nuclei, subimage_width = subimage_width)
@@ -369,9 +376,15 @@ def main():
     
     # Different errors for different widths
     
-    subimage_widths, C2_list_std_err, C3_list_std_err, C4_list_std_err =\
-        get_different_fittings(numpydata_C1_segmentation, numpydata_C2_segmentation_match_nuclei, numpydata_C3_segmentation_match_nuclei, numpydata_C4_segmentation_match_nuclei)
+    if flag_histbins_for_outliers:
+        subimage_widths, C2_list_std_err, C3_list_std_err, C4_list_std_err, C2_list_r_value, C3_list_r_value, C4_list_r_value =\
+            get_different_fittings_histogram(numpydata_C1_segmentation, numpydata_C2_segmentation_match_nuclei, numpydata_C3_segmentation_match_nuclei, numpydata_C4_segmentation_match_nuclei,\
+                                             count_C1, count_C2, count_C3, count_C4)
+    else:
+        subimage_widths, C2_list_std_err, C3_list_std_err, C4_list_std_err, C2_list_r_value, C3_list_r_value, C4_list_r_value =\
+            get_different_fittings_center_of_mass(numpydata_C1_segmentation, numpydata_C2_segmentation_match_nuclei, numpydata_C3_segmentation_match_nuclei, numpydata_C4_segmentation_match_nuclei)
     
+    # Std-error
     fitting_top_cells_table = {'width': ['C2', 'C3', 'C4']}
     
     for i_width in range(len(subimage_widths)):
@@ -387,6 +400,23 @@ def main():
     # Save DataFrame to CSV
     csv_output = os.path.join(folder_output, sample_name + '_top_edge_std_errors.csv')
     df_fitting_top_cells.to_csv(csv_output, index=False, sep = ',') 
+    
+    # R-value
+    fitting_top_cells_table = {'width': ['C2', 'C3', 'C4']}
+
+    for i_width in range(len(subimage_widths)):
+        key = str(subimage_widths[i_width])
+        
+        values = [C2_list_r_value[i_width], C3_list_r_value[i_width], C4_list_r_value[i_width]]
+        
+        fitting_top_cells_table[key] = values
+    
+    # Create DataFrame
+    #df_distribution_indexes = pd.DataFrame(distribution_indexes_table, index=['C2','C3','C4'])
+    df_fitting_top_cells = pd.DataFrame(fitting_top_cells_table)
+    # Save DataFrame to CSV
+    csv_output = os.path.join(folder_output, sample_name + '_top_edge_r_value.csv')
+    df_fitting_top_cells.to_csv(csv_output, index=False, sep = ',')
     
     
     #Draw top fitted line
@@ -408,13 +438,13 @@ def main():
     ax[1,5].plot(x, C4_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
     
     if flag_text:
-        ax[0,5].text(x[0] + 10, C2_top_y[0] - text_shift, f'std-err: {C2_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,2].text(x[0] + 10, C3_top_y[0] - text_shift, f'std-err: {C3_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,5].text(x[0] + 10, C4_top_y[0] - text_shift, f'std-err: {C4_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        ax[0,5].text(x[0] + 10, C2_top_y[0] - text_shift, f'r-value: {C2_top_r_value:.3f} std-err: {C2_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        ax[1,2].text(x[0] + 10, C3_top_y[0] - text_shift, f'r-value: {C3_top_r_value:.3f} std-err: {C3_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        ax[1,5].text(x[0] + 10, C4_top_y[0] - text_shift, f'r-value: {C4_top_r_value:.3f} std-err: {C4_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
         
-        ax[0,5].text(x[0] + 10, C2_bottom_y[0] - text_shift, f'std-err: {C2_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,2].text(x[0] + 10, C3_bottom_y[0] - text_shift, f'std-err: {C3_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,5].text(x[0] + 10, C4_bottom_y[0] - text_shift, f'std-err: {C4_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        ax[0,5].text(x[0] + 10, C2_bottom_y[0] - text_shift, f'r-value: {C2_bottom_r_value:.3f} std-err: {C2_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        ax[1,2].text(x[0] + 10, C3_bottom_y[0] - text_shift, f'r-value: {C2_bottom_r_value:.3f} std-err: {C3_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        ax[1,5].text(x[0] + 10, C4_bottom_y[0] - text_shift, f'r-value: {C2_bottom_r_value:.3f} std-err: {C4_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
     
     plt.savefig(path_to_save, dpi=400)
     
