@@ -7,7 +7,7 @@
 
 #File path to .tif or .tiff file with a stitched stack of IHC images
 tiff_path = '' #.tif file #In Windows, place an r before the ''
-
+tiff_path = '/mnt/DATA/ACHRI/2023-09 Workshop/Yang/2024/20240315/Fused_B2_1.tif'
 # Number of channels in tiff stack
 n_channels = 4
 
@@ -19,6 +19,10 @@ path_model_trained_C1  = ''#'Neurons_C1.183326' #In Windows, place an r before t
 path_model_trained_C2  = ''#'Neurons_C2.919883' #In Windows, place an r before the ''
 path_model_trained_C3  = ''#'Neurons_C3.981474' #In Windows, place an r before the ''
 path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before the ''
+path_model_trained_C1  = '/mnt/DATA/ACHRI/2023-09 Workshop/Yang/2024/20240123/Training_GT_C1_masks_python/models/Yang_C1_diam_30_cyto2_ji072566_20240201_dilatedLabels.183326'
+path_model_trained_C2  = '/mnt/DATA/ACHRI/2023-09 Workshop/Yang/2024/20240123/Training_GT_C2_masks_python/models/Yang_C2_nuclei_diam15_ji0675.919883'
+path_model_trained_C3  = '/mnt/DATA/ACHRI/2023-09 Workshop/FINAL_MATERIAL/Best_Architectures/Neurons_diam15_nuclei_model.981474'
+path_model_trained_C4  = '/mnt/DATA/ACHRI/2023-09 Workshop/Yang/2024/20240123/Training_semicolumn_GT_C4_masks_python/models/Yang_semicolumn_ji_0.288_diam30_cyto2.909737'
 
 #Parameters for running the segmentation
 flag_normalize = False
@@ -306,6 +310,20 @@ def main():
         C2_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C2_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
         C3_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C3_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
         C4_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C4_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
+    
+    #And between layer 3 and 4
+
+    C3_C4_and = np.uint8(np.logical_and((C3_layer_nuclei > 0).astype(np.uint8),(C4_layer_nuclei > 0).astype(np.uint8)))
+    C3_C4_and_output = os.path.join(folder_output, sample_name + '_C3_C4_and.png')
+    cv2.imwrite(C3_C4_and_output, C3_C4_and)
+
+    C2_C4_and = np.uint8(np.logical_and((C2_layer_nuclei > 0).astype(np.uint8),(C4_layer_nuclei > 0).astype(np.uint8)))
+    C2_C4_and_output = os.path.join(folder_output, sample_name + '_C2_C4_and.png')
+    cv2.imwrite(C2_C4_and_output, C2_C4_and)
+
+    C2_C3_and = np.uint8(np.logical_and((C2_layer_nuclei > 0).astype(np.uint8),(C3_layer_nuclei > 0).astype(np.uint8)))
+    C2_C3_and_output = os.path.join(folder_output, sample_name + '_C2_C3_and.png')
+    cv2.imwrite(C2_C3_and_output, C2_C3_and)
     
     C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width)
     C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_layer_nuclei, subimage_width = subimage_width)
