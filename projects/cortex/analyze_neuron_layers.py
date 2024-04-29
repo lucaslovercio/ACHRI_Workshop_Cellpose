@@ -111,7 +111,7 @@ def get_bottom_cell_label(labels, margin = 3, previous_label = -1):
             if row[j] > 0 and row[j] != previous_label: #Is not background and not the previous detected
                 return row[j], i, j
     
-    return None  # No cell found in the subimage
+    return None, None, None  # No cell found in the subimage
 
 def get_mask_center_of_mass(nuclei_segmentation, subimage_width = 100):
     binary_segmentation = (nuclei_segmentation>0).astype(int)
