@@ -7,6 +7,7 @@
 
 #File path to .tif or .tiff file with a stitched stack of IHC images
 tiff_path = '' #.tif file #In Windows, place an r before the ''
+
 # Number of channels in tiff stack
 n_channels = 4
 
@@ -19,6 +20,7 @@ path_model_trained_C2  = ''#'Neurons_C2.919883' #In Windows, place an r before t
 path_model_trained_C3  = ''#'Neurons_C3.981474' #In Windows, place an r before the ''
 path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before the ''
 
+
 #Parameters for running the segmentation
 flag_normalize = False
 flag_gpu = False
@@ -29,8 +31,12 @@ subimage_width = 100
 #Side of the Square for morisita index for the table dispersion_indexes
 d_morisita = 150
 
-# Optional parameters for linear fitting of edge
+#For outlier detection
 flag_histbins_for_outliers = True
+min_cells_bin_dapi = 50
+min_cells_bin_filter_layer_2 = 12
+min_cells_bin_filter_layer_3_4 = 3
+# Optional parameters for linear fitting of edge
 flag_text = True #If show the error of the linear fitting
 text_shift = 60 # How much above the linear fitting the text can go
 fitting_color = 'green' # Color of line and text
@@ -52,8 +58,9 @@ import matplotlib.pyplot as plt
 from cellpose import models
 from quantify_segmentation import get_props_per_cell
 from aux_functions.functionPercNorm import functionPercNorm
-from analyze_neuron_layers import get_layer_nuclei_histogram, get_layer_nuclei_center_of_mass, get_top_cells_labels,\
-    get_different_fittings_center_of_mass, get_different_fittings_histogram, plot_cells, plot_nuclei_segmentations, fit_cells, get_distribution_histograms
+from analyze_neuron_layers import plot_nuclei_segmentations, get_distribution_histograms,\
+    get_top_cells_labels, get_layer_nuclei_center_of_mass, plot_cells, fit_cells, get_different_fittings_histogram, get_layer_nuclei_histogram,\
+        get_segmentation_filtered_layer, get_number_of_cells
 from distribution_indexes import generate_distribution_indexes
 import pandas as pd
 from scipy import ndimage
@@ -295,30 +302,81 @@ def main():
     cv2.imwrite(C4_segmentation_output, numpydata_C4_segmentation_match_nuclei)
     
     # Analyzing neural layer edge on the top
-    if flag_histbins_for_outliers:
-        C1_layer_nuclei = get_layer_nuclei_histogram(numpydata_C1_segmentation, count_C1, min_cells_bin = 80) #80 to avoid epitelial cells
-        C2_layer_nuclei = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, count_C2)
-        C3_layer_nuclei = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, count_C3)
-        C4_layer_nuclei = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, count_C4)
-    else:
-        C1_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C1_segmentation, subimage_width = subimage_width, flag_show = False)
-        C2_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C2_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
-        C3_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C3_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
-        C4_layer_nuclei = get_layer_nuclei_center_of_mass(numpydata_C4_segmentation_match_nuclei, subimage_width = subimage_width, flag_show = False)
+
+    C1_layer_nuclei, C1_start_row, C1_end_row = get_layer_nuclei_histogram(numpydata_C1_segmentation, count_C1, min_cells_bin = min_cells_bin_dapi)
+    C2_layer_nuclei, C2_start_row, C2_end_row = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, count_C2, min_cells_bin = min_cells_bin_filter_layer_2)
+    C3_layer_nuclei, C3_start_row, C3_end_row = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, count_C3, min_cells_bin = min_cells_bin_filter_layer_3_4)
+    C4_layer_nuclei, C4_start_row, C4_end_row = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, count_C4, min_cells_bin = min_cells_bin_filter_layer_3_4)
+        
+    C1_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C1_segmentation, C1_start_row, C1_end_row)
+    C2_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C2_segmentation_match_nuclei, C2_start_row, C2_end_row)
+    C3_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C3_segmentation_match_nuclei, C3_start_row, C3_end_row)
+    C4_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C4_segmentation_match_nuclei, C4_start_row, C4_end_row)
+        
+
+    C1_number_cells_filtered_layer = get_number_of_cells(C1_segmentation_filtered_layer)
+    C2_number_cells_filtered_layer = get_number_of_cells(C2_segmentation_filtered_layer)
+    C3_number_cells_filtered_layer = get_number_of_cells(C3_segmentation_filtered_layer)
+    C4_number_cells_filtered_layer = get_number_of_cells(C4_segmentation_filtered_layer)
+
+    C1_thickness = C1_end_row-C1_start_row+1
+    C2_thickness = C2_end_row-C2_start_row+1
+    C3_thickness = C3_end_row-C3_start_row+1
+    C4_thickness = C4_end_row-C4_start_row+1
+
+    #For the normalization, take the maximum of end between channel 3 and 4, not the end of the DAPI
     
+    bottom_row = max([C3_end_row, C4_end_row])
+    thickness_valid = bottom_row - C1_start_row + 1
+    
+    filtered_layer_data = {
+            '--': ['n_cells_layer', 'start_row', 'end_row', 'thickness', 'thickness_sample', 'thickness_normalized', 'start_row_to_C1', 'end_row_to_C1'],
+            'C1': [C1_number_cells_filtered_layer, C1_start_row, C1_end_row, C1_thickness, thickness_valid, C1_thickness/thickness_valid , 0                          , C1_end_row - C1_start_row],
+            'C2': [C2_number_cells_filtered_layer, C2_start_row, C2_end_row, C2_thickness, thickness_valid, C2_thickness/thickness_valid , C2_start_row - C1_start_row, C2_end_row - C1_start_row],
+            'C3': [C3_number_cells_filtered_layer, C3_start_row, C3_end_row, C3_thickness, thickness_valid, C3_thickness/thickness_valid , C3_start_row - C1_start_row, C3_end_row - C1_start_row],
+            'C4': [C4_number_cells_filtered_layer, C4_start_row, C4_end_row, C4_thickness, thickness_valid, C4_thickness/thickness_valid , C4_start_row - C1_start_row, C4_end_row - C1_start_row]
+    }
+    # Create DataFrame
+    df_filtered_layer_data = pd.DataFrame(filtered_layer_data)
+    # Save DataFrame to CSV
+    csv_output = os.path.join(folder_output, sample_name + '_layers_filtered_by_bins.csv')
+    df_filtered_layer_data.to_csv(csv_output, index=False, sep = ',') 
+    
+    C1_segmentation_output = os.path.join(folder_output, sample_name + '_C1_segmentation_filtered_by_bins.png')
+    cv2.imwrite(C1_segmentation_output, C1_segmentation_filtered_layer)
+    C2_segmentation_output = os.path.join(folder_output, sample_name + '_C2_segmentation_filtered_by_bins.png')
+    cv2.imwrite(C2_segmentation_output, C2_segmentation_filtered_layer)
+    C3_segmentation_output = os.path.join(folder_output, sample_name + '_C3_segmentation_filtered_by_bins.png')
+    cv2.imwrite(C3_segmentation_output, C3_segmentation_filtered_layer)
+    C4_segmentation_output = os.path.join(folder_output, sample_name + '_C4_segmentation_filtered_by_bins.png')
+    cv2.imwrite(C4_segmentation_output, C4_segmentation_filtered_layer)
+    
+    
+    path_to_save = os.path.join(folder_output, sample_name + '_nuclei_segmentation_filtered_by_bins.png')
+    #plt.savefig(os.path.join(folder_output, sample_name + '_nuclei_segmentation.png'), dpi=300)
+    fig, ax = plot_nuclei_segmentations(numpydata_C1, numpydata_C2, numpydata_C3, numpydata_C4,\
+                                  C1_segmentation_filtered_layer, C2_segmentation_filtered_layer, C3_segmentation_filtered_layer, C4_segmentation_filtered_layer,\
+                                      C2_segmentation_filtered_layer,\
+                                          C3_segmentation_filtered_layer, C4_segmentation_filtered_layer,\
+                                              path_to_save, mask_nuclei = mask_nuclei)
+
     #And between layer 3 and 4
-
+    
     C3_C4_and = np.uint8(np.logical_and((C3_layer_nuclei > 0).astype(np.uint8),(C4_layer_nuclei > 0).astype(np.uint8)))
-    C3_C4_and_output = os.path.join(folder_output, sample_name + '_C3_C4_and.png')
+    C3_C4_number_cells_filtered_layer = get_number_of_cells(C3_C4_and)
+    C3_C4_and_output = os.path.join(folder_output, sample_name + '_C3_and_C4_nCells_'+str(C3_C4_number_cells_filtered_layer)+'.png')
     cv2.imwrite(C3_C4_and_output, C3_C4_and)
-
+    
     C2_C4_and = np.uint8(np.logical_and((C2_layer_nuclei > 0).astype(np.uint8),(C4_layer_nuclei > 0).astype(np.uint8)))
-    C2_C4_and_output = os.path.join(folder_output, sample_name + '_C2_C4_and.png')
+    C2_C4_number_cells_filtered_layer = get_number_of_cells(C2_C4_and)
+    C2_C4_and_output = os.path.join(folder_output, sample_name + '_C2_and_C4_nCells_'+str(C2_C4_number_cells_filtered_layer)+'.png')
     cv2.imwrite(C2_C4_and_output, C2_C4_and)
-
+    
     C2_C3_and = np.uint8(np.logical_and((C2_layer_nuclei > 0).astype(np.uint8),(C3_layer_nuclei > 0).astype(np.uint8)))
-    C2_C3_and_output = os.path.join(folder_output, sample_name + '_C2_C3_and.png')
+    C2_C3_number_cells_filtered_layer = get_number_of_cells(C2_C3_and)
+    C2_C3_and_output = os.path.join(folder_output, sample_name  + '_C2_and_C3_nCells_'+str(C2_C3_number_cells_filtered_layer)+'.png')
     cv2.imwrite(C2_C3_and_output, C2_C3_and)
+    
     
     C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width)
     C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_layer_nuclei, subimage_width = subimage_width)
@@ -333,8 +391,8 @@ def main():
     path_to_save = os.path.join(folder_output, sample_name + '_edge_fitting.png')
     fig, ax = plot_nuclei_segmentations(numpydata_C1, numpydata_C2, numpydata_C3, numpydata_C4,\
                                   numpydata_C1_segmentation, numpydata_C2_segmentation, numpydata_C3_segmentation, numpydata_C4_segmentation,\
-                                      numpydata_C2_segmentation_match_nuclei>0,\
-                                          numpydata_C3_segmentation_match_nuclei>0, numpydata_C4_segmentation_match_nuclei>0,\
+                                      C2_segmentation_filtered_layer>0,\
+                                          C3_segmentation_filtered_layer>0, C4_segmentation_filtered_layer>0,\
                                               path_to_save = None, mask_nuclei = mask_nuclei)
     
     

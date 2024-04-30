@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from quantify_segmentation import get_density_bins
 from scipy import stats
 from scipy import ndimage
+from skimage import measure
 
 def vertical_center_of_mass(subimage):
     total_intensity = 0
@@ -155,10 +156,9 @@ def get_top_cells_labels(nuclei_segmentation, subimage_width = 100, bottom_cells
     
     return cell_labels, cells_xy, 
 
-def get_layer_nuclei_histogram(nuclei_segmentation, vector_bins, min_cells_bin = 2, flag_show = False):
+def get_layer_nuclei_histogram(nuclei_segmentation, vector_bins, min_cells_bin = 8, flag_show = False):
     dims = nuclei_segmentation.shape #dimY, dimX
     total_bins = len(vector_bins)
-    
     #Get bins that are together
     vector_bins_th = vector_bins >= min_cells_bin
     labeled_array, num_features = ndimage.label(vector_bins_th)
@@ -170,15 +170,38 @@ def get_layer_nuclei_histogram(nuclei_segmentation, vector_bins, min_cells_bin =
     start = min(largest_component_indices[0])
     end = max(largest_component_indices[0])
     
-    
     start_row = np.int16(np.floor(dims[0] / total_bins) * start)
     end_row = np.int16((dims[0] / total_bins) * (end + 1))
-    
+
     mask = np.zeros_like(nuclei_segmentation)
     mask[start_row:end_row, :] = 1
     
     not_outlier_nuclei = np.where(mask,nuclei_segmentation,0)
-    return not_outlier_nuclei
+    return not_outlier_nuclei, start_row, end_row
+
+def get_segmentation_filtered_layer(numpydata_segmentation, start_row, end_row):
+    segmentation_filtered_layer = np.copy(numpydata_segmentation)
+    segmentation_filtered_layer[0:start_row,:] = 0
+    segmentation_filtered_layer[end_row:,:] = 0
+    return segmentation_filtered_layer
+
+def get_number_of_cells(binary_image, min_px_object = 16):
+    # Perform connected component analysis
+    labels = measure.label(binary_image)
+    
+    # Count the number of pixels in each object
+    unique_labels, label_counts = np.unique(labels, return_counts=True)
+    
+    # Remove background label (label 0)
+    unique_labels = unique_labels[1:]
+    label_counts = label_counts[1:]
+    
+    # Print the number of pixels in each object
+    n_cells = 0
+    for label, count in zip(unique_labels, label_counts):
+        if count > min_px_object:
+            n_cells = n_cells + 1
+    return n_cells
 
 def get_layer_nuclei_center_of_mass(nuclei_segmentation, subimage_width = 100, flag_show = False):
         
@@ -444,10 +467,10 @@ def get_different_fittings_histogram(numpydata_C1_segmentation, numpydata_C2_seg
     for subimage_width in subimage_widths:
         #print('subimage_width: ' + str(subimage_width))
         #C1_layer_nuclei = get_layer_nuclei(numpydata_C1_segmentation, subimage_width = subimage_width, flag_show = False)
-        C1_layer_nuclei = get_layer_nuclei_histogram(numpydata_C1_segmentation, C1_bins)
-        C2_layer_nuclei = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, C2_bins)
-        C3_layer_nuclei = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, C3_bins)
-        C4_layer_nuclei = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, C4_bins)
+        C1_layer_nuclei, _, _ = get_layer_nuclei_histogram(numpydata_C1_segmentation, C1_bins)
+        C2_layer_nuclei, _, _ = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, C2_bins)
+        C3_layer_nuclei, _, _ = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, C3_bins)
+        C4_layer_nuclei, _, _ = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, C4_bins)
 
         C1_top_cell_labels, C1_top_cells_xy = get_top_cells_labels(C1_layer_nuclei, subimage_width = subimage_width)    
         C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width)
