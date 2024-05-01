@@ -7,7 +7,6 @@
 
 #File path to .tif or .tiff file with a stitched stack of IHC images
 tiff_path = '' #.tif file #In Windows, place an r before the ''
-
 # Number of channels in tiff stack
 n_channels = 4
 
@@ -19,7 +18,6 @@ path_model_trained_C1  = ''#'Neurons_C1.183326' #In Windows, place an r before t
 path_model_trained_C2  = ''#'Neurons_C2.919883' #In Windows, place an r before the ''
 path_model_trained_C3  = ''#'Neurons_C3.981474' #In Windows, place an r before the ''
 path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before the ''
-
 
 #Parameters for running the segmentation
 flag_normalize = False
@@ -58,6 +56,7 @@ import matplotlib.pyplot as plt
 from cellpose import models
 from quantify_segmentation import get_props_per_cell
 from aux_functions.functionPercNorm import functionPercNorm
+from aux_functions.functionReadTIFFMultipage import read_multipage_tiff_as_list, split_list_images, get_projected_image
 from analyze_neuron_layers import plot_nuclei_segmentations, get_distribution_histograms,\
     get_top_cells_labels, get_layer_nuclei_center_of_mass, plot_cells, fit_cells, get_different_fittings_histogram, get_layer_nuclei_histogram,\
         get_segmentation_filtered_layer, get_number_of_cells
@@ -66,55 +65,15 @@ import pandas as pd
 from scipy import ndimage
 import cv2
 
-def read_multipage_tiff(file_path):
-    img = Image.open(file_path)
-    images = []
-    while True:
-        try:
-            img.seek(len(images))  # Go to the next frame
-            images.append(img.copy())
-        except EOFError:
-            break
-    return images
-
-def split_list_images(images, n_channels):
-    list_list_images = []
-    n_images = len(images)
-    n_images_per_channel = int(n_images / n_channels)
-    
-    for i_channel in range(n_channels):
-        images_channel = []
-        #print('i_channel: ' + str(i_channel))
-        for i_img_in_channel in range(n_images_per_channel):
-            #print('i_img_in_channel: ' + str(i_img_in_channel))
-            idx = i_img_in_channel * n_channels + i_channel
-            #print(idx)
-            img = images[idx]
-            images_channel.append(img)
-        list_list_images.append(images_channel)
-        
-    return list_list_images
-
-def projected_image(images):
-    # Convert images to numpy arrays
-    images_array = np.array([np.array(img, dtype=np.float32) for img in images])
-
-    # Compute the average of the images
-    avg_image = np.mean(images_array, axis=0)
-
-    # Convert back to uint8
-    avg_image = np.uint16(avg_image)
-
-    return avg_image
 
 def function_debug(tiff_path):
     
     # Example usage
     # file_path = "multipage.tiff"
-    images = read_multipage_tiff(tiff_path)
+    images = read_multipage_tiff_as_list(tiff_path)
     list_list_images = split_list_images(images, n_channels)
     
-    avg_img = projected_image(list_list_images[0])
+    avg_img = get_projected_image(list_list_images[0])
     
     fig, ax = plt.subplots(1, 1, sharex=True, sharey=True, 
                            constrained_layout = True)
@@ -182,13 +141,13 @@ def main():
     #print(directory_path)
     folder_output = create_folder_for_sample(directory_path, sample_name)
     #print(folder_output)
-    images = read_multipage_tiff(tiff_path)
+    images = read_multipage_tiff_as_list(tiff_path)
     list_list_images = split_list_images(images, n_channels)
     
-    numpydata_C1 = projected_image(list_list_images[0])
-    numpydata_C2 = projected_image(list_list_images[1])
-    numpydata_C3 = projected_image(list_list_images[2])
-    numpydata_C4 = projected_image(list_list_images[3])
+    numpydata_C1 = get_projected_image(list_list_images[0])
+    numpydata_C2 = get_projected_image(list_list_images[1])
+    numpydata_C3 = get_projected_image(list_list_images[2])
+    numpydata_C4 = get_projected_image(list_list_images[3])
     
     #Load image (first channel)
     if flag_normalize:

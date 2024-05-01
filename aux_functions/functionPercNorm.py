@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.stats
 
-from aux_functions.functionReadTIFFMultipage import functionReadTIFFMultipage
+from aux_functions.functionReadTIFFMultipage import read_multipage_tiff
 import cv2
 import os
 
