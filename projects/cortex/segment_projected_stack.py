@@ -7,6 +7,7 @@
 
 #File path to .tif or .tiff file with a stitched stack of IHC images
 tiff_path = '' #.tif file #In Windows, place an r before the ''
+
 # Number of channels in tiff stack
 n_channels = 4
 
@@ -267,7 +268,14 @@ def main():
     C3_layer_nuclei, C3_start_row, C3_end_row = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, count_C3, min_cells_bin = min_cells_bin_filter_layer_3_4)
     C4_layer_nuclei, C4_start_row, C4_end_row = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, count_C4, min_cells_bin = min_cells_bin_filter_layer_3_4)
         
+    # Filter segmentation according to the start and end rows
+    
+    #IMPORTANT: TO COMPUTE METRICS AND REMOVE CELLS IN THE TOP, NUCLEI STARTS WHERE C2 STARTS
+    C1_start_row = C2_start_row
+        
     C1_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C1_segmentation, C1_start_row, C1_end_row)
+    #IMPORTANT: Correct the output
+    C1_layer_nuclei = C1_segmentation_filtered_layer
     C2_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C2_segmentation_match_nuclei, C2_start_row, C2_end_row)
     C3_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C3_segmentation_match_nuclei, C3_start_row, C3_end_row)
     C4_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C4_segmentation_match_nuclei, C4_start_row, C4_end_row)
@@ -353,7 +361,17 @@ def main():
                                       C2_segmentation_filtered_layer>0,\
                                           C3_segmentation_filtered_layer>0, C4_segmentation_filtered_layer>0,\
                                               path_to_save = None, mask_nuclei = mask_nuclei)
-    
+    # Plot start and end of layer
+    x = [0, dims[1]-2]
+        
+    ax[0,1].plot(x, [C1_start_row, C1_start_row], color='black',linewidth=marker_size/10)
+    ax[0,1].plot(x, [C1_end_row, C1_end_row], color='black',linewidth=marker_size/10)
+    ax[0,5].plot(x, [C2_start_row, C2_start_row], color='black',linewidth=marker_size/10)
+    ax[0,5].plot(x, [C2_end_row, C2_end_row], color='black',linewidth=marker_size/10)
+    ax[1,2].plot(x, [C3_start_row, C3_start_row], color='black',linewidth=marker_size/10)
+    ax[1,2].plot(x, [C3_end_row, C3_end_row], color='black',linewidth=marker_size/10)
+    ax[1,5].plot(x, [C4_start_row, C4_start_row], color='black',linewidth=marker_size/10)
+    ax[1,5].plot(x, [C4_end_row, C4_end_row], color='black',linewidth=marker_size/10)
     
     plot_cells(ax[0,1], C1_top_cells_xy, marker_size = marker_size)    
     plot_cells(ax[0,5], C2_top_cells_xy, marker_size = marker_size)
