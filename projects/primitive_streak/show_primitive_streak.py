@@ -106,6 +106,6 @@ plt.gca().set_title(label_y + ': ' + str(len(cell_props_channel3)))
 
 figManager = plt.get_current_fig_manager()
 
-figManager.window.showMaximized()
+#figManager.window.showMaximized()
 
 plt.show()

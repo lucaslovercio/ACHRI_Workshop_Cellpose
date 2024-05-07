@@ -30,3 +30,4 @@ cellpose
 matplotlib
 scikit-image
 csv
+pandas
