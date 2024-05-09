@@ -22,7 +22,7 @@ path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before t
 
 #Parameters for running the segmentation
 flag_normalize = False
-flag_gpu = False
+flag_gpu = True
 
 #Width for compute nuclei in edges for the table edge_fitting
 subimage_width = 100
@@ -55,11 +55,11 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from cellpose import models
-from quantify_segmentation import get_props_per_cell
+from quantify_segmentation import get_props_per_cell, get_density_bins
 from aux_functions.functionPercNorm import functionPercNorm
 from aux_functions.functionReadTIFFMultipage import read_multipage_tiff_as_list, split_list_images, get_projected_image
 from analyze_neuron_layers import plot_nuclei_segmentations, get_distribution_histograms,\
-    get_top_cells_labels, get_layer_nuclei_center_of_mass, plot_cells, fit_cells, get_different_fittings_histogram, get_layer_nuclei_histogram,\
+    get_top_cells_labels, get_layer_nuclei_center_of_mass, plot_cells, fit_cells, get_different_fittings, get_different_fittings_center_of_mass, get_layer_nuclei_histogram,\
         get_segmentation_filtered_layer, get_number_of_cells
 from distribution_indexes import generate_distribution_indexes
 import pandas as pd
@@ -263,10 +263,10 @@ def main():
     
     # Analyzing neural layer edge on the top
 
-    C1_layer_nuclei, C1_start_row, C1_end_row = get_layer_nuclei_histogram(numpydata_C1_segmentation, count_C1, min_cells_bin = min_cells_bin_dapi)
-    C2_layer_nuclei, C2_start_row, C2_end_row = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, count_C2, min_cells_bin = min_cells_bin_filter_layer_2)
-    C3_layer_nuclei, C3_start_row, C3_end_row = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, count_C3, min_cells_bin = min_cells_bin_filter_layer_3_4)
-    C4_layer_nuclei, C4_start_row, C4_end_row = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, count_C4, min_cells_bin = min_cells_bin_filter_layer_3_4)
+    _, C1_start_row, C1_end_row = get_layer_nuclei_histogram(numpydata_C1_segmentation, count_C1, min_cells_bin = min_cells_bin_dapi)
+    _, C2_start_row, C2_end_row = get_layer_nuclei_histogram(numpydata_C2_segmentation_match_nuclei, count_C2, min_cells_bin = min_cells_bin_filter_layer_2)
+    _, C3_start_row, C3_end_row = get_layer_nuclei_histogram(numpydata_C3_segmentation_match_nuclei, count_C3, min_cells_bin = min_cells_bin_filter_layer_3_4)
+    _, C4_start_row, C4_end_row = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, count_C4, min_cells_bin = min_cells_bin_filter_layer_3_4)
         
     # Filter segmentation according to the start and end rows
     
@@ -275,11 +275,22 @@ def main():
         
     C1_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C1_segmentation, C1_start_row, C1_end_row)
     #IMPORTANT: Correct the output
-    C1_layer_nuclei = C1_segmentation_filtered_layer
+    #C1_layer_nuclei = C1_segmentation_filtered_layer
     C2_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C2_segmentation_match_nuclei, C2_start_row, C2_end_row)
     C3_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C3_segmentation_match_nuclei, C3_start_row, C3_end_row)
     C4_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C4_segmentation_match_nuclei, C4_start_row, C4_end_row)
         
+    
+    C1_cells_props_filtered = get_props_per_cell(C1_segmentation_filtered_layer)
+    C2_cells_props_filtered = get_props_per_cell(C2_segmentation_filtered_layer)
+    C3_cells_props_filtered = get_props_per_cell(C3_segmentation_filtered_layer)
+    C4_cells_props_filtered = get_props_per_cell(C4_segmentation_filtered_layer)
+    
+    
+    count_C1_filtered, edges_C1 = get_density_bins(C1_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
+    count_C2_filtered, edges_C2 = get_density_bins(C2_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
+    count_C3_filtered, edges_C3 = get_density_bins(C3_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
+    count_C4_filtered, edges_C4 = get_density_bins(C4_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
 
     C1_number_cells_filtered_layer = get_number_of_cells(C1_segmentation_filtered_layer)
     C2_number_cells_filtered_layer = get_number_of_cells(C2_segmentation_filtered_layer)
@@ -329,31 +340,32 @@ def main():
 
     #And between layer 3 and 4
     
-    C3_C4_and = np.uint8(np.logical_and((C3_layer_nuclei > 0).astype(np.uint8),(C4_layer_nuclei > 0).astype(np.uint8)))
+    C3_C4_and = np.uint8(np.logical_and((C3_segmentation_filtered_layer > 0).astype(np.uint8),(C4_segmentation_filtered_layer > 0).astype(np.uint8)))
     C3_C4_number_cells_filtered_layer = get_number_of_cells(C3_C4_and)
     C3_C4_and_output = os.path.join(folder_output, sample_name + '_C3_and_C4_nCells_'+str(C3_C4_number_cells_filtered_layer)+'.png')
     cv2.imwrite(C3_C4_and_output, C3_C4_and)
     
-    C2_C4_and = np.uint8(np.logical_and((C2_layer_nuclei > 0).astype(np.uint8),(C4_layer_nuclei > 0).astype(np.uint8)))
+    C2_C4_and = np.uint8(np.logical_and((C2_segmentation_filtered_layer > 0).astype(np.uint8),(C4_segmentation_filtered_layer > 0).astype(np.uint8)))
     C2_C4_number_cells_filtered_layer = get_number_of_cells(C2_C4_and)
     C2_C4_and_output = os.path.join(folder_output, sample_name + '_C2_and_C4_nCells_'+str(C2_C4_number_cells_filtered_layer)+'.png')
     cv2.imwrite(C2_C4_and_output, C2_C4_and)
     
-    C2_C3_and = np.uint8(np.logical_and((C2_layer_nuclei > 0).astype(np.uint8),(C3_layer_nuclei > 0).astype(np.uint8)))
+    C2_C3_and = np.uint8(np.logical_and((C2_segmentation_filtered_layer > 0).astype(np.uint8),(C3_segmentation_filtered_layer > 0).astype(np.uint8)))
     C2_C3_number_cells_filtered_layer = get_number_of_cells(C2_C3_and)
     C2_C3_and_output = os.path.join(folder_output, sample_name  + '_C2_and_C3_nCells_'+str(C2_C3_number_cells_filtered_layer)+'.png')
     cv2.imwrite(C2_C3_and_output, C2_C3_and)
     
     
-    C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width)
-    C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_layer_nuclei, subimage_width = subimage_width)
-    C2_top_cell_labels, C2_top_cells_xy = get_top_cells_labels(C2_layer_nuclei, subimage_width = subimage_width)
-    C1_top_cell_labels, C1_top_cells_xy = get_top_cells_labels(C1_layer_nuclei, subimage_width = subimage_width)
+    C1_top_cell_labels, C1_top_cells_xy = get_top_cells_labels(C1_segmentation_filtered_layer, subimage_width = subimage_width)
+    C2_top_cell_labels, C2_top_cells_xy = get_top_cells_labels(C2_segmentation_filtered_layer, subimage_width = subimage_width)
+    C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_segmentation_filtered_layer, subimage_width = subimage_width)
+    C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_segmentation_filtered_layer, subimage_width = subimage_width)
     
-    C1_bottom_cell_labels, C1_bottom_cells_xy = get_top_cells_labels(C1_layer_nuclei, subimage_width = subimage_width, bottom_cells = True)
-    C3_bottom_cell_labels, C3_bottom_cells_xy = get_top_cells_labels(C3_layer_nuclei, subimage_width = subimage_width, bottom_cells = True)
-    C4_bottom_cell_labels, C4_bottom_cells_xy = get_top_cells_labels(C4_layer_nuclei, subimage_width = subimage_width, bottom_cells = True)
-    C2_bottom_cell_labels, C2_bottom_cells_xy = get_top_cells_labels(C2_layer_nuclei, subimage_width = subimage_width, bottom_cells = True)
+    C1_bottom_cell_labels, C1_bottom_cells_xy = get_top_cells_labels(C1_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    C2_bottom_cell_labels, C2_bottom_cells_xy = get_top_cells_labels(C2_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    C3_bottom_cell_labels, C3_bottom_cells_xy = get_top_cells_labels(C3_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    C4_bottom_cell_labels, C4_bottom_cells_xy = get_top_cells_labels(C4_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    
     
     path_to_save = os.path.join(folder_output, sample_name + '_edge_fitting.png')
     fig, ax = plot_nuclei_segmentations(numpydata_C1, numpydata_C2, numpydata_C3, numpydata_C4,\
@@ -361,6 +373,9 @@ def main():
                                       C2_segmentation_filtered_layer>0,\
                                           C3_segmentation_filtered_layer>0, C4_segmentation_filtered_layer>0,\
                                               path_to_save = None, mask_nuclei = mask_nuclei)
+        
+    del numpydata_C1, numpydata_C2, numpydata_C3, numpydata_C4, numpydata_C1_segmentation, numpydata_C2_segmentation, numpydata_C3_segmentation, numpydata_C4_segmentation
+    
     # Plot start and end of layer
     x = [0, dims[1]-2]
         
@@ -428,11 +443,10 @@ def main():
     
     if flag_histbins_for_outliers:
         subimage_widths, C1_list_std_err, C2_list_std_err, C3_list_std_err, C4_list_std_err, C1_list_r_value, C2_list_r_value, C3_list_r_value, C4_list_r_value =\
-            get_different_fittings_histogram(numpydata_C1_segmentation, numpydata_C2_segmentation_match_nuclei, numpydata_C3_segmentation_match_nuclei, numpydata_C4_segmentation_match_nuclei,\
-                                             count_C1, count_C2, count_C3, count_C4)
+            get_different_fittings(C1_segmentation_filtered_layer, C2_segmentation_filtered_layer, C3_segmentation_filtered_layer, C4_segmentation_filtered_layer)
     else:
         subimage_widths, C1_list_std_err, C2_list_std_err, C3_list_std_err, C4_list_std_err, C1_list_r_value, C2_list_r_value, C3_list_r_value, C4_list_r_value =\
-            get_different_fittings_center_of_mass(numpydata_C1_segmentation, numpydata_C2_segmentation_match_nuclei, numpydata_C3_segmentation_match_nuclei, numpydata_C4_segmentation_match_nuclei)
+            get_different_fittings_center_of_mass(C1_segmentation_filtered_layer, C2_segmentation_filtered_layer, C3_segmentation_filtered_layer, C4_segmentation_filtered_layer)
     
     # Std-error
     fitting_top_cells_table = {'width': ['C1', 'C2', 'C3', 'C4']}
