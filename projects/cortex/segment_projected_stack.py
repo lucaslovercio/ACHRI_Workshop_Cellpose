@@ -32,7 +32,7 @@ d_morisita = 150
 
 #For outlier detection
 flag_histbins_for_outliers = True
-min_cells_bin_dapi = 50
+min_cells_bin_dapi = 10
 min_cells_bin_filter_layer_2 = 12
 min_cells_bin_filter_layer_3_4 = 3
 # Optional parameters for linear fitting of edge
@@ -65,7 +65,7 @@ from distribution_indexes import generate_distribution_indexes
 import pandas as pd
 from scipy import ndimage
 import cv2
-
+import math
 
 def function_debug(tiff_path):
     
@@ -269,9 +269,16 @@ def main():
     _, C4_start_row, C4_end_row = get_layer_nuclei_histogram(numpydata_C4_segmentation_match_nuclei, count_C4, min_cells_bin = min_cells_bin_filter_layer_3_4)
         
     # Filter segmentation according to the start and end rows
+    print('C1_start_row' + str(C1_start_row))
+    print('C1_end_row' + str(C1_end_row))     
+    print('C2_start_row' + str(C2_start_row))
+    print('C2_end_row' + str(C2_end_row))     
     
     #IMPORTANT: TO COMPUTE METRICS AND REMOVE CELLS IN THE TOP, NUCLEI STARTS WHERE C2 STARTS
-    C1_start_row = C2_start_row
+    if not math.isnan(C2_start_row):
+        C1_start_row = C2_start_row
+        print('C1_start_row' + str(C1_start_row))
+        print('C1_end_row' + str(C1_end_row))        
         
     C1_segmentation_filtered_layer = get_segmentation_filtered_layer(numpydata_C1_segmentation, C1_start_row, C1_end_row)
     #IMPORTANT: Correct the output
@@ -287,10 +294,10 @@ def main():
     C4_cells_props_filtered = get_props_per_cell(C4_segmentation_filtered_layer)
     
     
-    count_C1_filtered, edges_C1 = get_density_bins(C1_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
-    count_C2_filtered, edges_C2 = get_density_bins(C2_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
-    count_C3_filtered, edges_C3 = get_density_bins(C3_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
-    count_C4_filtered, edges_C4 = get_density_bins(C4_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
+    count_C1_filtered, _ = get_density_bins(C1_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
+    count_C2_filtered, _ = get_density_bins(C2_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
+    count_C3_filtered, _ = get_density_bins(C3_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
+    count_C4_filtered, _ = get_density_bins(C4_cells_props_filtered, dims[1],dims[0], axis=1, n_bins=n_bins)
 
     C1_number_cells_filtered_layer = get_number_of_cells(C1_segmentation_filtered_layer)
     C2_number_cells_filtered_layer = get_number_of_cells(C2_segmentation_filtered_layer)
@@ -360,11 +367,24 @@ def main():
     C2_top_cell_labels, C2_top_cells_xy = get_top_cells_labels(C2_segmentation_filtered_layer, subimage_width = subimage_width)
     C3_top_cell_labels, C3_top_cells_xy = get_top_cells_labels(C3_segmentation_filtered_layer, subimage_width = subimage_width)
     C4_top_cell_labels, C4_top_cells_xy = get_top_cells_labels(C4_segmentation_filtered_layer, subimage_width = subimage_width)
+    C1_no_cells = len(C1_top_cell_labels) <1
+    C2_no_cells = len(C2_top_cell_labels) <1
+    C3_no_cells = len(C3_top_cell_labels) <1
+    C4_no_cells = len(C4_top_cell_labels) <1
     
-    C1_bottom_cell_labels, C1_bottom_cells_xy = get_top_cells_labels(C1_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
-    C2_bottom_cell_labels, C2_bottom_cells_xy = get_top_cells_labels(C2_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
-    C3_bottom_cell_labels, C3_bottom_cells_xy = get_top_cells_labels(C3_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
-    C4_bottom_cell_labels, C4_bottom_cells_xy = get_top_cells_labels(C4_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    C1_bottom_cells_xy = None
+    C2_bottom_cells_xy = None
+    C3_bottom_cells_xy = None
+    C4_bottom_cells_xy = None
+    
+    if not C1_no_cells:
+        C1_bottom_cell_labels, C1_bottom_cells_xy = get_top_cells_labels(C1_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    if not C2_no_cells:
+        C2_bottom_cell_labels, C2_bottom_cells_xy = get_top_cells_labels(C2_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    if not C3_no_cells:
+        C3_bottom_cell_labels, C3_bottom_cells_xy = get_top_cells_labels(C3_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
+    if not C4_no_cells:
+        C4_bottom_cell_labels, C4_bottom_cells_xy = get_top_cells_labels(C4_segmentation_filtered_layer, subimage_width = subimage_width, bottom_cells = True)
     
     
     path_to_save = os.path.join(folder_output, sample_name + '_edge_fitting.png')
@@ -379,24 +399,26 @@ def main():
     # Plot start and end of layer
     x = [0, dims[1]-2]
         
-    ax[0,1].plot(x, [C1_start_row, C1_start_row], color='black',linewidth=marker_size/10)
-    ax[0,1].plot(x, [C1_end_row, C1_end_row], color='black',linewidth=marker_size/10)
-    ax[0,5].plot(x, [C2_start_row, C2_start_row], color='black',linewidth=marker_size/10)
-    ax[0,5].plot(x, [C2_end_row, C2_end_row], color='black',linewidth=marker_size/10)
-    ax[1,2].plot(x, [C3_start_row, C3_start_row], color='black',linewidth=marker_size/10)
-    ax[1,2].plot(x, [C3_end_row, C3_end_row], color='black',linewidth=marker_size/10)
-    ax[1,5].plot(x, [C4_start_row, C4_start_row], color='black',linewidth=marker_size/10)
-    ax[1,5].plot(x, [C4_end_row, C4_end_row], color='black',linewidth=marker_size/10)
-    
-    plot_cells(ax[0,1], C1_top_cells_xy, marker_size = marker_size)    
-    plot_cells(ax[0,5], C2_top_cells_xy, marker_size = marker_size)
-    plot_cells(ax[1,2], C3_top_cells_xy, marker_size = marker_size)
-    plot_cells(ax[1,5], C4_top_cells_xy, marker_size = marker_size)
-    
-    plot_cells(ax[0,1], C1_bottom_cells_xy, color='green', marker_size = marker_size)    
-    plot_cells(ax[0,5], C2_bottom_cells_xy, color='green', marker_size = marker_size)
-    plot_cells(ax[1,2], C3_bottom_cells_xy, color='green', marker_size = marker_size)
-    plot_cells(ax[1,5], C4_bottom_cells_xy, color='green', marker_size = marker_size)
+    if not C1_no_cells:
+        ax[0,1].plot(x, [C1_start_row, C1_start_row], color='black',linewidth=marker_size/10)
+        ax[0,1].plot(x, [C1_end_row, C1_end_row], color='black',linewidth=marker_size/10)
+        plot_cells(ax[0,1], C1_top_cells_xy, marker_size = marker_size)
+        plot_cells(ax[0,1], C1_bottom_cells_xy, color='green', marker_size = marker_size)
+    if not C2_no_cells:
+        ax[0,5].plot(x, [C2_start_row, C2_start_row], color='black',linewidth=marker_size/10)
+        ax[0,5].plot(x, [C2_end_row, C2_end_row], color='black',linewidth=marker_size/10)
+        plot_cells(ax[0,5], C2_top_cells_xy, marker_size = marker_size)
+        plot_cells(ax[0,5], C2_bottom_cells_xy, color='green', marker_size = marker_size)
+    if not C3_no_cells:
+        ax[1,2].plot(x, [C3_start_row, C3_start_row], color='black',linewidth=marker_size/10)
+        ax[1,2].plot(x, [C3_end_row, C3_end_row], color='black',linewidth=marker_size/10)
+        plot_cells(ax[1,2], C3_top_cells_xy, marker_size = marker_size)
+        plot_cells(ax[1,2], C3_bottom_cells_xy, color='green', marker_size = marker_size)
+    if not C4_no_cells:
+        ax[1,5].plot(x, [C4_start_row, C4_start_row], color='black',linewidth=marker_size/10)
+        ax[1,5].plot(x, [C4_end_row, C4_end_row], color='black',linewidth=marker_size/10)
+        plot_cells(ax[1,5], C4_top_cells_xy, marker_size = marker_size)
+        plot_cells(ax[1,5], C4_bottom_cells_xy, color='green', marker_size = marker_size)
     
     C1_top_slope, C1_top_intercept, C1_top_r_value, C1_top_p_value, C1_top_std_err = fit_cells(C1_top_cells_xy)    
     C2_top_slope, C2_top_intercept, C2_top_r_value, C2_top_p_value, C2_top_std_err = fit_cells(C2_top_cells_xy)
@@ -485,36 +507,45 @@ def main():
     
     #Draw top fitted line
     x = [0, dims[1]-2]
-    C1_top_y = C1_top_slope*np.array(x) + C1_top_intercept
-    ax[0,1].plot(x, C1_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
-    C2_top_y = C2_top_slope*np.array(x) + C2_top_intercept
-    ax[0,5].plot(x, C2_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
-    C3_top_y = C3_top_slope*np.array(x) + C3_top_intercept
-    ax[1,2].plot(x, C3_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
-    C4_top_y = C4_top_slope*np.array(x) + C4_top_intercept
-    ax[1,5].plot(x, C4_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
-    
-    #Draw bottom fitted line
-    #x = [0, dims[1]-2]
-    C1_bottom_y = C1_bottom_slope*np.array(x) + C1_bottom_intercept
-    ax[0,1].plot(x, C1_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
-    C2_bottom_y = C2_bottom_slope*np.array(x) + C2_bottom_intercept
-    ax[0,5].plot(x, C2_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
-    C3_bottom_y = C3_bottom_slope*np.array(x) + C3_bottom_intercept
-    ax[1,2].plot(x, C3_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
-    C4_bottom_y = C4_bottom_slope*np.array(x) + C4_bottom_intercept
-    ax[1,5].plot(x, C4_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+    if not C1_no_cells:
+        C1_top_y = C1_top_slope*np.array(x) + C1_top_intercept
+        ax[0,1].plot(x, C1_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+        C1_bottom_y = C1_bottom_slope*np.array(x) + C1_bottom_intercept
+        ax[0,1].plot(x, C1_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+    if not C2_no_cells:
+        C2_top_y = C2_top_slope*np.array(x) + C2_top_intercept
+        ax[0,5].plot(x, C2_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+        C2_bottom_y = C2_bottom_slope*np.array(x) + C2_bottom_intercept
+        ax[0,5].plot(x, C2_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+    if not C3_no_cells:
+        C3_top_y = C3_top_slope*np.array(x) + C3_top_intercept
+        ax[1,2].plot(x, C3_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+        C3_bottom_y = C3_bottom_slope*np.array(x) + C3_bottom_intercept
+        ax[1,2].plot(x, C3_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+    if not C4_no_cells:
+        C4_top_y = C4_top_slope*np.array(x) + C4_top_intercept
+        ax[1,5].plot(x, C4_top_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
+        C4_bottom_y = C4_bottom_slope*np.array(x) + C4_bottom_intercept
+        ax[1,5].plot(x, C4_bottom_y, color=fitting_color, label='Fitted line',linewidth=marker_size/10)
     
     if flag_text:
-        ax[0,1].text(x[0] + 10, C1_top_y[0] - text_shift, f'r-value: {C1_top_r_value:.3f} std-err: {C1_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[0,5].text(x[0] + 10, C2_top_y[0] - text_shift, f'r-value: {C2_top_r_value:.3f} std-err: {C2_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,2].text(x[0] + 10, C3_top_y[0] - text_shift, f'r-value: {C3_top_r_value:.3f} std-err: {C3_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,5].text(x[0] + 10, C4_top_y[0] - text_shift, f'r-value: {C4_top_r_value:.3f} std-err: {C4_top_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        if not C1_no_cells:
+            ax[0,1].text(x[0] + 10, C1_top_y[0] - text_shift, f'std-err: {C1_top_std_err:.3f}', color=fitting_color, fontsize=fontsize)
+        if not C2_no_cells:
+            ax[0,5].text(x[0] + 10, C2_top_y[0] - text_shift, f'std-err: {C2_top_std_err:.3f}', color=fitting_color, fontsize=fontsize)
+        if not C3_no_cells:
+            ax[1,2].text(x[0] + 10, C3_top_y[0] - text_shift, f'std-err: {C3_top_std_err:.3f}', color=fitting_color, fontsize=fontsize)
+        if not C4_no_cells:
+            ax[1,5].text(x[0] + 10, C4_top_y[0] - text_shift, f'std-err: {C4_top_std_err:.3f}', color=fitting_color, fontsize=fontsize)
         
-        ax[0,1].text(x[0] + 10, C1_bottom_y[0] - text_shift, f'r-value: {C1_bottom_r_value:.3f} std-err: {C1_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[0,5].text(x[0] + 10, C2_bottom_y[0] - text_shift, f'r-value: {C2_bottom_r_value:.3f} std-err: {C2_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,2].text(x[0] + 10, C3_bottom_y[0] - text_shift, f'r-value: {C2_bottom_r_value:.3f} std-err: {C3_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
-        ax[1,5].text(x[0] + 10, C4_bottom_y[0] - text_shift, f'r-value: {C2_bottom_r_value:.3f} std-err: {C4_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize);
+        if not C1_no_cells:
+            ax[0,1].text(x[0] + 10, C1_bottom_y[0] - text_shift, f'std-err: {C1_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize)
+        if not C2_no_cells:
+            ax[0,5].text(x[0] + 10, C2_bottom_y[0] - text_shift, f'std-err: {C2_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize)
+        if not C3_no_cells:
+            ax[1,2].text(x[0] + 10, C3_bottom_y[0] - text_shift, f'std-err: {C3_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize)
+        if not C4_no_cells:
+            ax[1,5].text(x[0] + 10, C4_bottom_y[0] - text_shift, f'std-err: {C4_bottom_std_err:.3f}', color=fitting_color, fontsize=fontsize)
     
     plt.savefig(path_to_save, dpi=400)
     

@@ -15,15 +15,19 @@ sys.path.append(root_path)
 from quantify_segmentation import get_centroids
 import pandas as pd
 import random
+import math
 
 def get_clark_evans_index(points, bbox):
     #Adapted from Zheng et al. 2022 Aquila a spatial omics database and analysis platform
     
     n = len(points)
     if n < 4:
-        return -1
+        return float("nan")
 
     xmin, ymin, xmax, ymax = bbox
+    if math.isnan(xmin) or math.isnan(ymin) or math.isnan(xmax) or math.isnan(ymax):
+        return float("nan") # which would be empty at this point
+        
     valid_points = []
     for point in points:
         x, y = point
@@ -57,11 +61,13 @@ def generate_random_points2(num_points, x_range, y_range):
     return points.tolist()
 
 def get_list_cuadrants(points, bbox, dx, dy):
-
+    quadrants = []
     xmin, ymin, xmax, ymax = bbox
+    if math.isnan(xmin) or math.isnan(ymin) or math.isnan(xmax) or math.isnan(ymax):
+        return quadrants # which would be empty at this point
     dimX = int((xmax - xmin) / dx)
     dimY = int((ymax - ymin) / dy)
-    quadrants = []
+
     
     # Iterate through each quadrant
     for i in range(dimX):
@@ -87,7 +93,7 @@ def get_list_cuadrants(points, bbox, dx, dy):
 def get_morisita_index(points, bbox, dx, dy):
     N = len(points)
     if N < 4:
-        return -1
+        return float("nan")
     
     xmin, ymin, xmax, ymax = bbox
     valid_points = []
@@ -102,6 +108,8 @@ def get_morisita_index(points, bbox, dx, dy):
     
     #Equation by Amaral et al.
     Q = len(list_points_by_quadrant)
+    if Q < 1:
+        return float("nan")
     
     num1 = 0
     for l in list_points_by_quadrant:

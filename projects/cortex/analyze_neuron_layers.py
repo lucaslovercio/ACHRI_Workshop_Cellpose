@@ -12,6 +12,7 @@ from quantify_segmentation import get_density_bins
 from scipy import stats
 from scipy import ndimage
 from skimage import measure
+import math
 
 def vertical_center_of_mass(subimage):
     total_intensity = 0
@@ -164,6 +165,8 @@ def get_layer_nuclei_histogram(nuclei_segmentation, vector_bins, min_cells_bin =
     labeled_array, num_features = ndimage.label(vector_bins_th)
     
     component_sizes = ndimage.sum(vector_bins_th, labeled_array, range(1, num_features + 1))
+    if (component_sizes is None) or (len(component_sizes) < 1):
+        return nuclei_segmentation, float("nan"), float("nan")
     largest_component_label = np.argmax(component_sizes) + 1
     
     largest_component_indices = np.where(labeled_array == largest_component_label)
@@ -181,6 +184,8 @@ def get_layer_nuclei_histogram(nuclei_segmentation, vector_bins, min_cells_bin =
 
 def get_segmentation_filtered_layer(numpydata_segmentation, start_row, end_row):
     segmentation_filtered_layer = np.copy(numpydata_segmentation)
+    if math.isnan(start_row) or math.isnan(end_row):
+        return segmentation_filtered_layer
     segmentation_filtered_layer[0:start_row,:] = 0
     segmentation_filtered_layer[end_row:,:] = 0
     return segmentation_filtered_layer
@@ -388,6 +393,8 @@ def get_distribution_histograms(cell_props_C1, cell_props_C2, cell_props_C3, cel
     return count_C1, count_C2, count_C3, count_C4
 
 def fit_cells(cells_xy):
+    if cells_xy is None or len(cells_xy) == 0:
+        return float("nan"), float("nan"), float("nan"), float("nan"), float("nan")
     x = [point[0] for point in cells_xy]
     y = [point[1] for point in cells_xy]
     
