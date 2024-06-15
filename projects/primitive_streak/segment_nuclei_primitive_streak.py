@@ -34,7 +34,7 @@ from cellpose import models
 import matplotlib.pyplot as plt
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.append(root_path)
-from quantify_segmentation import get_props_per_cell
+from quantify_segmentation import get_props_per_cell, get_joint_expr_per_cell, plot_expressions, save_csv
 from aux_functions.functionPercNorm import functionPercNorm
 from aux_functions.functionReadTIFFMultipage import read_multipage_tiff_as_list, split_list_images, get_projected_image
 from skimage import measure
@@ -60,32 +60,6 @@ def segment_channel(img_original, path_model_trained, flag_normalize = False, gp
         
     return img_segmentation_channel, cell_props_channel
 
-
-def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, img_segmentation_channel1, img_segmentation_channel2):
-    
-    regions = measure.regionprops(img_segmentation)
-    list_cell_expr = []
-    for region in regions:
-        
-        binary_image = np.where(img_segmentation == region.label,1,0)
-        
-        masked_expression1 = img_expression1[binary_image > 0]
-        masked_expression2 = img_expression2[binary_image > 0]
-        masked_pred1 = img_segmentation_channel1[binary_image > 0]
-        masked_pred2 = img_segmentation_channel2[binary_image > 0]
-        
-        mean_exp1 = np.median(masked_expression1) #mean can be used too
-        mean_exp2 = np.median(masked_expression2)
-        pred1 = np.int8(np.median(masked_pred1>0)) #is more classified as class 1?
-        pred2 = np.int8(np.median(masked_pred2>0)) #is more classified as class 2?
-        
-        #label, expr1, expr2, pred1, pred2
-        joint_expr = [region.label, mean_exp1, mean_exp2, pred1, pred2]
-        list_cell_expr.append(joint_expr)
-
-    return list_cell_expr
-
-
 def normalize_background(img_original, img_segmentation, flag_norm_type = 'Histogram'):
     background_values = img_original[img_segmentation == 0]
     mean_background = np.mean(background_values)
@@ -99,24 +73,7 @@ def normalize_background(img_original, img_segmentation, flag_norm_type = 'Histo
         normalized = functionPercNorm( np.single(img_original))
     return normalized
 
-def plot_expressions(list_cell_expr1_expr2, title_plot):
-    max_expr = 0;
-    plt.figure(figsize=(8, 8))
-    
-    for cell_expr1_expr2 in list_cell_expr1_expr2:
-        label, mean_exp1, mean_exp2, pred1, pred2 = cell_expr1_expr2
-        if max_expr< np.max([mean_exp1,mean_exp2]):
-            max_expr = np.max([mean_exp1,mean_exp2])
-            
-        plt.scatter(mean_exp1, mean_exp2, color='black', marker='o')
-            
-    plt.title(title_plot)
-    plt.xlabel(label_x)
-    plt.ylabel(label_y)
-    plt.ylim(0, max_expr + 0.01)
-    plt.xlim(0, max_expr + 0.01)
-    
-    #plt.show()
+
 
 # Not being used but keeping the code
 def plot_expressions_coloured_by_prediction(list_cell_expr1_expr2, title_plot):
@@ -167,17 +124,7 @@ def show_images(img_channel1, img_channel2, title_plot):
 
     #plt.show()
 
-def save_csv(list_cell_expr1_expr2, csv_file_path):
-    with open(csv_file_path, "w", newline="") as csvfile:
-        # Create a CSV writer object
-        csv_writer = csv.writer(csvfile)
-        
-        # Write the header row
-        csv_writer.writerow(["Label", "Median_Exp2", "Median_Exp3", "Pred2", "Pred3"])
-        
-        # Write each row of data
-        for cell_expr1_expr2 in list_cell_expr1_expr2:
-            csv_writer.writerow(cell_expr1_expr2)
+
     
 def main():
     images = read_multipage_tiff_as_list(tiff_path)
