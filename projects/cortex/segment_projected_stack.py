@@ -8,7 +8,7 @@
 #File path to .tif or .tiff file with a stitched stack of IHC images
 folder_root = '' #In Windows, place an r before the ''
 
-tiffs_name = ['Fused_46-KO-4.tif','KO-B8-1.tif','Fused_KO9.tif','Fused_WT-B4_3.tif'] #Examples of file names
+tiffs_name = ['Fused_46-KO-4.tif','KO-B8-1.tif','Fused_KO9.tif'] #Examples of file names
 
 # Number of channels in tiff stack
 n_channels = 4
@@ -22,10 +22,9 @@ path_model_trained_C2  = ''#'Neurons_C2.919883' #In Windows, place an r before t
 path_model_trained_C3  = ''#'Neurons_C3.981474' #In Windows, place an r before the ''
 path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before the ''
 
-
 #Parameters for running the segmentation
 flag_normalize = False
-flag_gpu = True
+flag_gpu = False
 
 #Width for compute nuclei in edges for the table edge_fitting
 subimage_width = 100
@@ -58,7 +57,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from cellpose import models
-from quantify_segmentation import get_props_per_cell, get_density_bins
+from quantify_segmentation import get_props_per_cell, get_density_bins, get_joint_expr_per_cell, save_csv, plot_expressions
 from aux_functions.functionPercNorm import functionPercNorm
 from aux_functions.functionReadTIFFMultipage import read_multipage_tiff_as_list, split_list_images, get_projected_image
 from analyze_neuron_layers import plot_nuclei_segmentations, get_distribution_histograms,\
@@ -142,7 +141,7 @@ def main():
     
         plt.close('all')
         sample_name = get_sample_name(tiff_path)
-        #print(sample_name)
+        print('Processing: ' + tiff_name)
         directory_path = os.path.dirname(tiff_path)
         #print(directory_path)
         folder_output = create_folder_for_sample(directory_path, sample_name)
@@ -166,7 +165,7 @@ def main():
         
         #Load model
         model_trained_C1 = models.CellposeModel(pretrained_model=path_model_trained_C1, gpu=flag_gpu)
-        print('Segment channel 1')
+        # print('Segment channel 1')
         #Segment channel 1
         numpydata_C1_segmentation, flows, styles = model_trained_C1.eval(numpydata_C1, diameter=None, channels= [[0,0]])
         
@@ -181,7 +180,7 @@ def main():
         
         #Load model
         model_trained_C2 = models.CellposeModel(pretrained_model=path_model_trained_C2, gpu=flag_gpu)
-        print('Segment channel 2')
+        # print('Segment channel 2')
         numpydata_C2_segmentation, flows, styles = model_trained_C2.eval(numpydata_C2, diameter=None, channels= [[0,0]])
         
         cell_props_C2 = get_props_per_cell(numpydata_C2_segmentation)
@@ -194,7 +193,7 @@ def main():
         
         #Load model
         model_trained_C3 = models.CellposeModel(pretrained_model=path_model_trained_C3, gpu=flag_gpu)
-        print('Segment channel 3')
+        # print('Segment channel 3')
         numpydata_C3_segmentation, flows, styles = model_trained_C3.eval(numpydata_C3, diameter=None, channels= [[0,0]])
         
         cell_props_C3 = get_props_per_cell(numpydata_C3_segmentation)
@@ -207,7 +206,7 @@ def main():
         
         #Load model
         model_trained_C4 = models.CellposeModel(pretrained_model=path_model_trained_C4, gpu=flag_gpu)
-        print('Segment channel 4')
+        # print('Segment channel 4')
         numpydata_C4_segmentation, flows, styles = model_trained_C4.eval(numpydata_C4, diameter=None, channels= [[0,0]])
         
         cell_props_C4 = get_props_per_cell(numpydata_C4_segmentation)
@@ -399,7 +398,7 @@ def main():
                                               C3_segmentation_filtered_layer>0, C4_segmentation_filtered_layer>0,\
                                                   path_to_save = None, mask_nuclei = mask_nuclei)
             
-        del numpydata_C1, numpydata_C2, numpydata_C3, numpydata_C4, numpydata_C1_segmentation, numpydata_C2_segmentation, numpydata_C3_segmentation, numpydata_C4_segmentation
+        del numpydata_C1, numpydata_C1_segmentation, numpydata_C2_segmentation, numpydata_C3_segmentation, numpydata_C4_segmentation
         
         # Plot start and end of layer
         x = [0, dims[1]-2]
@@ -582,7 +581,27 @@ def main():
         
         path_to_save = os.path.join(folder_output, sample_name + '_morisita_succession.png')
         morisita_handle.savefig(path_to_save, dpi=400)
-    
+        
+        list_cell_expr2_expr3 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C2, numpydata_C3, C1_segmentation_filtered_layer, C1_segmentation_filtered_layer)
+        plot_expressions(list_cell_expr2_expr3, title_plot = 'C2 vs C3', label_x = 'C2', label_y = 'C3')
+        plt.savefig(os.path.join(folder_output, sample_name + '_expr_C2_C3.png'), dpi=400)
+        save_csv(list_cell_expr2_expr3, os.path.join(folder_output, sample_name + '_expr_C2_C3.csv'))    
+        
+        del list_cell_expr2_expr3
+        
+        list_cell_expr2_expr4 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C2, numpydata_C4, C1_segmentation_filtered_layer, C1_segmentation_filtered_layer)
+        plot_expressions(list_cell_expr2_expr4, title_plot = 'C2 vs C4', label_x = 'C2', label_y = 'C4')
+        plt.savefig(os.path.join(folder_output, sample_name + '_expr_C2_C4.png'), dpi=400)
+        save_csv(list_cell_expr2_expr4, os.path.join(folder_output, sample_name + '_expr_C2_C4.csv'))
+        
+        del list_cell_expr2_expr4
+        
+        list_cell_expr3_expr4 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C3, numpydata_C4, C1_segmentation_filtered_layer, C1_segmentation_filtered_layer)
+        plot_expressions(list_cell_expr3_expr4, title_plot = 'C3 vs C4', label_x = 'C3', label_y = 'C4')
+        plt.savefig(os.path.join(folder_output, sample_name + '_expr_C3_C4.png'), dpi=400)
+        save_csv(list_cell_expr3_expr4, os.path.join(folder_output, sample_name + '_expr_C3_C4.csv'))
+        
+        del list_cell_expr3_expr4        
 
 
 if __name__ == "__main__":

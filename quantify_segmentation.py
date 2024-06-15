@@ -244,6 +244,61 @@ def get_centroids(cell_props, bbox = None):
                 list_centroids.append([cell_prop.xCentroid,cell_prop.yCentroid])
     return list_centroids
 
+def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, img_segmentation_channel1, img_segmentation_channel2):
+    
+    regions = measure.regionprops(img_segmentation)
+    list_cell_expr = []
+    for region in regions:
+        
+        binary_image = np.where(img_segmentation == region.label,1,0)
+        
+        masked_expression1 = img_expression1[binary_image > 0]
+        masked_expression2 = img_expression2[binary_image > 0]
+        masked_pred1 = img_segmentation_channel1[binary_image > 0]
+        masked_pred2 = img_segmentation_channel2[binary_image > 0]
+        
+        mean_exp1 = np.median(masked_expression1) #mean can be used too
+        mean_exp2 = np.median(masked_expression2)
+        pred1 = np.int8(np.median(masked_pred1>0)) #is more classified as class 1?
+        pred2 = np.int8(np.median(masked_pred2>0)) #is more classified as class 2?
+        
+        #label, expr1, expr2, pred1, pred2
+        joint_expr = [region.label, mean_exp1, mean_exp2, pred1, pred2]
+        list_cell_expr.append(joint_expr)
+
+    return list_cell_expr
+
+def plot_expressions(list_cell_expr1_expr2, title_plot, label_x = 'Channel 1', label_y = 'Channel 2'):
+    max_expr = 0;
+    plt.figure(figsize=(8, 8))
+    
+    for cell_expr1_expr2 in list_cell_expr1_expr2:
+        label, mean_exp1, mean_exp2, pred1, pred2 = cell_expr1_expr2
+        if max_expr< np.max([mean_exp1,mean_exp2]):
+            max_expr = np.max([mean_exp1,mean_exp2])
+            
+        plt.scatter(mean_exp1, mean_exp2, color='black', marker='o')
+            
+    plt.title(title_plot)
+    plt.xlabel(label_x)
+    plt.ylabel(label_y)
+    plt.ylim(0, max_expr + 0.01)
+    plt.xlim(0, max_expr + 0.01)
+    
+    #plt.show()
+
+def save_csv(list_cell_expr1_expr2, csv_file_path):
+    with open(csv_file_path, "w", newline="") as csvfile:
+        # Create a CSV writer object
+        csv_writer = csv.writer(csvfile)
+        
+        # Write the header row
+        csv_writer.writerow(["Label", "Median_Exp1", "Median_Exp2", "Pred1", "Pred2"])
+        
+        # Write each row of data
+        for cell_expr1_expr2 in list_cell_expr1_expr2:
+            csv_writer.writerow(cell_expr1_expr2)
+
 def main():
     
     file_images = []
