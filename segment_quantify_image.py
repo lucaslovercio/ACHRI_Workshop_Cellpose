@@ -16,12 +16,12 @@ from aux_functions.functionPercNorm import functionPercNorm, get_one_channel
 
 ###################################   PARAMETERS   #########################
 
-image_input         = ''
-path_model_trained  = ''
+image_input         = '/mnt/DATA/ACHRI/2023-09 Workshop/Yang/TIFF/20x-CSDE1,NEX-B2-P6-HOMO WT-1-1_exported_from_imageJ.tif_channel_2.tif_HistNorm.png'
+path_model_trained  = '/mnt/DATA/ACHRI/2023-09 Workshop/FINAL_MATERIAL/Best_Architectures/Neurons_diam15_nuclei_model.981474'
 flag_normalize = False
-flag_gpu = False
+flag_gpu = True
 channels = [[0,0]] #Same channels as training
-th_size = 10000
+th_size = 100
 
 #Change if not desired naming
 csv_output = image_input + '_descriptors.csv'

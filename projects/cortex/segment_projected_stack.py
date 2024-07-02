@@ -10,6 +10,7 @@ folder_root = '' #In Windows, place an r before the ''
 
 tiffs_name = ['Fused_46-KO-4.tif','KO-B8-1.tif','Fused_KO9.tif'] #Examples of file names
 
+
 # Number of channels in tiff stack
 n_channels = 4
 
@@ -24,7 +25,7 @@ path_model_trained_C4  = ''#'Neurons_C4.909737' #In Windows, place an r before t
 
 #Parameters for running the segmentation
 flag_normalize = False
-flag_gpu = False
+flag_gpu = True
 
 #Width for compute nuclei in edges for the table edge_fitting
 subimage_width = 100
@@ -57,7 +58,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from cellpose import models
-from quantify_segmentation import get_props_per_cell, get_density_bins, get_joint_expr_per_cell, save_csv, plot_expressions
+from quantify_segmentation import get_props_per_cell, get_density_bins, get_joint_expr_per_cell, save_csv, plot_expressions, filter_joint_cell_expr
 from aux_functions.functionPercNorm import functionPercNorm
 from aux_functions.functionReadTIFFMultipage import read_multipage_tiff_as_list, split_list_images, get_projected_image
 from analyze_neuron_layers import plot_nuclei_segmentations, get_distribution_histograms,\
@@ -582,26 +583,41 @@ def main():
         path_to_save = os.path.join(folder_output, sample_name + '_morisita_succession.png')
         morisita_handle.savefig(path_to_save, dpi=400)
         
-        list_cell_expr2_expr3 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C2, numpydata_C3, C1_segmentation_filtered_layer, C1_segmentation_filtered_layer)
+        list_cell_expr2_expr3 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C2, numpydata_C3, C2_segmentation_filtered_layer, C3_segmentation_filtered_layer)
         plot_expressions(list_cell_expr2_expr3, title_plot = 'C2 vs C3', label_x = 'C2', label_y = 'C3')
         plt.savefig(os.path.join(folder_output, sample_name + '_expr_C2_C3.png'), dpi=400)
-        save_csv(list_cell_expr2_expr3, os.path.join(folder_output, sample_name + '_expr_C2_C3.csv'))    
+        save_csv(list_cell_expr2_expr3, os.path.join(folder_output, sample_name + '_expr_C2_C3.csv'))
         
-        del list_cell_expr2_expr3
+        filtered_list_cell_expr2_expr3 = filter_joint_cell_expr(list_cell_expr2_expr3)
+        plot_expressions(filtered_list_cell_expr2_expr3, title_plot = 'C2 vs C3 - Only positives', label_x = 'C2', label_y = 'C3')
+        plt.savefig(os.path.join(folder_output, sample_name + '_expr_C2_C3_only_positives.png'), dpi=400)
+        save_csv(filtered_list_cell_expr2_expr3, os.path.join(folder_output, sample_name + '_expr_C2_C3_only_positives.csv'))    
         
-        list_cell_expr2_expr4 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C2, numpydata_C4, C1_segmentation_filtered_layer, C1_segmentation_filtered_layer)
+        del list_cell_expr2_expr3, filtered_list_cell_expr2_expr3
+        
+        list_cell_expr2_expr4 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C2, numpydata_C4, C2_segmentation_filtered_layer, C4_segmentation_filtered_layer)
         plot_expressions(list_cell_expr2_expr4, title_plot = 'C2 vs C4', label_x = 'C2', label_y = 'C4')
         plt.savefig(os.path.join(folder_output, sample_name + '_expr_C2_C4.png'), dpi=400)
         save_csv(list_cell_expr2_expr4, os.path.join(folder_output, sample_name + '_expr_C2_C4.csv'))
         
-        del list_cell_expr2_expr4
+        filtered_list_cell_expr2_expr4 = filter_joint_cell_expr(list_cell_expr2_expr4)
+        plot_expressions(filtered_list_cell_expr2_expr4, title_plot = 'C2 vs C4 - Only positives', label_x = 'C2', label_y = 'C4')
+        plt.savefig(os.path.join(folder_output, sample_name + '_expr_C2_C4_only_positives.png'), dpi=400)
+        save_csv(filtered_list_cell_expr2_expr4, os.path.join(folder_output, sample_name + '_expr_C2_C4_only_positives.csv'))
         
-        list_cell_expr3_expr4 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C3, numpydata_C4, C1_segmentation_filtered_layer, C1_segmentation_filtered_layer)
+        del list_cell_expr2_expr4, filtered_list_cell_expr2_expr4
+        
+        list_cell_expr3_expr4 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, numpydata_C3, numpydata_C4, C3_segmentation_filtered_layer, C4_segmentation_filtered_layer)
         plot_expressions(list_cell_expr3_expr4, title_plot = 'C3 vs C4', label_x = 'C3', label_y = 'C4')
         plt.savefig(os.path.join(folder_output, sample_name + '_expr_C3_C4.png'), dpi=400)
         save_csv(list_cell_expr3_expr4, os.path.join(folder_output, sample_name + '_expr_C3_C4.csv'))
         
-        del list_cell_expr3_expr4        
+        filtered_list_cell_expr3_expr4 = filter_joint_cell_expr(list_cell_expr3_expr4)
+        plot_expressions(filtered_list_cell_expr3_expr4, title_plot = 'C3 vs C4 - Only positives', label_x = 'C3', label_y = 'C4')
+        plt.savefig(os.path.join(folder_output, sample_name + '_expr_C3_C4_only_positives.png'), dpi=400)
+        save_csv(filtered_list_cell_expr3_expr4, os.path.join(folder_output, sample_name + '_expr_C3_C4_only_positives.csv'))
+        
+        del list_cell_expr3_expr4, filtered_list_cell_expr3_expr4        
 
 
 if __name__ == "__main__":

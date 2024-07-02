@@ -268,6 +268,15 @@ def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, 
 
     return list_cell_expr
 
+def filter_joint_cell_expr(list_cell_expr1_expr2): #Filtering if it is at least positive for one
+    filtered_list_cell_expr1_expr2 = []
+    for cell_expr1_expr2 in list_cell_expr1_expr2:
+        #The prediction is in the last two columns.
+        if cell_expr1_expr2[-1] + cell_expr1_expr2[-2] >0:
+            filtered_list_cell_expr1_expr2.append(cell_expr1_expr2)
+            
+    return filtered_list_cell_expr1_expr2
+
 def plot_expressions(list_cell_expr1_expr2, title_plot, label_x = 'Channel 1', label_y = 'Channel 2'):
     max_expr = 0;
     plt.figure(figsize=(8, 8))
