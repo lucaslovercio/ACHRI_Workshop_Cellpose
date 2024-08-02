@@ -13,6 +13,7 @@ from cellpose.io import imread
 import numpy as np
 import csv
 import pandas
+import cv2
 
 ###################################   PARAMETERS   #########################
 
@@ -368,8 +369,73 @@ def main():
                 
             
         it_debug = it_debug + 1
+
+def get_overlapping_segmentation(segmentation_to_preserve, img_segmentation, min_pixels=10, percentage = 0):
+
+    #Filtering of double segmented: regular nuclei vs all:
+    _, _, matching_pairs_a_to_b_non_zero = matching_label_pairs(segmentation_to_preserve, img_segmentation, min_pixels=min_pixels)
+    #print(len(matching_pairs_a_to_b_non_zero))
+    img_segmentation_filtered = np.zeros(segmentation_to_preserve.shape, dtype=np.uint16)
+    for label_pair in matching_pairs_a_to_b_non_zero:
+        img_0 = segmentation_to_preserve == label_pair[0]
+        img_1 = img_segmentation == label_pair[1]
+        img_intersec = np.logical_and(img_0,img_1)
+        intersec_value = np.sum(img_intersec)
+        img_union = np.logical_or(img_0,img_1)
+        union_value = np.sum(img_union)
+        IoU = intersec_value / union_value
+        #print(IoU)
         
+        if IoU > percentage:
+            img_segmentation_filtered[img_0] = label_pair[0]
+            
+    return img_segmentation_filtered
+
+def remove_overlapping_segmentation(segmentation_to_clean, img_segmentation, min_pixels=10, percentage = 0):
+
+    #Filtering of double segmented: regular nuclei vs all:
+    _, _, matching_pairs_a_to_b_non_zero = matching_label_pairs(segmentation_to_clean, img_segmentation, min_pixels=min_pixels)
+    #print(len(matching_pairs_a_to_b_non_zero))
+    img_segmentation_filtered = np.copy(segmentation_to_clean)
+    for label_pair in matching_pairs_a_to_b_non_zero:
+        img_0 = segmentation_to_clean == label_pair[0]
+        img_1 = img_segmentation == label_pair[1]
+        img_intersec = np.logical_and(img_0,img_1)
+        intersec_value = np.sum(img_intersec)
+        img_union = np.logical_or(img_0,img_1)
+        union_value = np.sum(img_union)
+        IoU = intersec_value / union_value
+        #print(IoU)
         
+        if IoU > percentage:
+            img_segmentation_filtered[img_0] = 0
+            
+    return img_segmentation_filtered
+        
+def draw_roi_over_image(img_original_normalized, img_segmentation):
+    image_uint8 = (np.copy(img_original_normalized) * 255).astype(np.uint8)
+    #del img_original_normalized
+    # Find unique object labels, excluding the background label 0
+    object_labels = np.unique(img_segmentation)
+    object_labels = object_labels[object_labels != 0]
+    
+    # Create a color image from the greyscale image for visualization
+    color_image = cv2.cvtColor(image_uint8, cv2.COLOR_GRAY2BGR)
+    
+    for label in object_labels:
+        # Create a mask for the current object
+        mask = img_segmentation == label
+        
+        # Find the bounding box coordinates for the current object
+        y_indices, x_indices = np.where(mask)
+        x_min, x_max = x_indices.min(), x_indices.max()
+        y_min, y_max = y_indices.min(), y_indices.max()
+        
+        # Draw a red rectangle (BGR color space) around the object
+        cv2.rectangle(color_image, (x_min, y_min), (x_max, y_max), (255, 0, 0), 2)
+    
+    del image_uint8
+    return color_image        
         
 if __name__ == "__main__":
     main()
