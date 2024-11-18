@@ -68,18 +68,16 @@ def get_props_per_cell(img_segmentation):
     
 def detect_big_cells(cell_props, th_size=9000):
     vector_area_per_cell = []
-    vector_idx = []
+    big_cells_idx = []
+    small_cells_idx = []
     for cell_prop in cell_props:
         vector_area_per_cell.append(cell_prop.area)
-        vector_idx.append(cell_prop.label)
-    
-    #vector_idx = vector_idx.array()
-    big_cells = np.asarray(vector_area_per_cell) > th_size
-    big_cells = np.nonzero(big_cells)
-    big_cells_idx = np.take(vector_idx,big_cells)
-    big_cells_idx = big_cells_idx[0] #+ 1
-    
-    return vector_area_per_cell, big_cells_idx
+        if cell_prop.area >= th_size:
+            big_cells_idx.append(cell_prop.label)
+        else:
+            small_cells_idx.append(cell_prop.label)
+        
+    return vector_area_per_cell, big_cells_idx, small_cells_idx
 
 def list_cells(cell_props, csv_output):
     with open(csv_output, 'w', newline='') as csvfile:
@@ -162,17 +160,15 @@ def get_correspondance_segmentations(img_segmentation_a, img_segmentation_b, min
     pairs_a_to_b_non_zero_repeated_binary = np.isin(a_labels, a_labels_repeated).astype(int)
     matching_pairs_a_to_b_non_zero_repeated = [matching_pairs_a_to_b_non_zero[i] for i in np.nonzero(pairs_a_to_b_non_zero_repeated_binary>0)[0]]
     
-    #print(matching_pairs_nuclei_to_membrane_non_zero_repeated)
-    #Plot
-    
     # Left only nuclei and cells listed as with multiple nuclei
     mask = np.isin(img_segmentation_a, a_labels_repeated)
     img_segmentation_a_modified = np.where(mask, img_segmentation_a, 0)
-    
-    b_labels = np.array(matching_pairs_a_to_b_non_zero_repeated)[:, 1]
-    mask = np.isin(img_segmentation_b, b_labels)
-    img_segmentation_b_modified = np.where(mask, img_segmentation_b, 0)
-    
+    img_segmentation_b_modified = img_segmentation_b
+    if len(matching_pairs_a_to_b_non_zero_repeated) > 0:
+        b_labels = np.array(matching_pairs_a_to_b_non_zero_repeated)[:, 1]
+        mask = np.isin(img_segmentation_b, b_labels)
+        img_segmentation_b_modified = np.where(mask, img_segmentation_b, 0)
+        # print(a_labels_repeated)
     return img_segmentation_a_modified, img_segmentation_b_modified, a_labels_repeated
 
 def get_join_properties(matching_pairs_a_to_b, props_a, props_b, suffixes=['_x', '_y']):
@@ -309,6 +305,8 @@ def save_csv(list_cell_expr1_expr2, csv_file_path):
         for cell_expr1_expr2 in list_cell_expr1_expr2:
             csv_writer.writerow(cell_expr1_expr2)
 
+
+
 def main():
     
     file_images = []
@@ -436,6 +434,32 @@ def draw_roi_over_image(img_original_normalized, img_segmentation):
     
     del image_uint8
     return color_image        
-        
+
+def get_areas(cell_props):
+    list_areas = []
+    for cell_prop in cell_props:
+        list_areas.append(cell_prop.area)
+            
+    return list_areas 
+
+def overlap_mask_over_image_rgb(color_image, mask, color_add = [0, 50, 0]):
+    color_image = np.float32(color_image) #need to convert to float to avoid overflow
+    color_image[mask == 1] =  color_image[mask == 1] + color_add
+    color_image[color_image>=255] = 255 #control values
+    color_image = np.uint8(color_image) #back to uint8
+    return color_image
+
+def draw_mask_over_image_rgb(color_image, mask, color_mask = [0, 255, 0]):
+    color_image[mask == 1] =  color_mask
+    return color_image
+
+def draw_mask_over_image(img_original_normalized, mask, color_mask = [0, 255, 0]):
+    image_uint8 = (img_original_normalized * 255).astype(np.uint8)
+    del img_original_normalized
+    # Create a color image from the greyscale image for visualization
+    color_image = cv2.cvtColor(image_uint8, cv2.COLOR_GRAY2BGR)
+    color_image[mask == 1] =  color_mask # BGR color for green
+    return color_image
+
 if __name__ == "__main__":
     main()

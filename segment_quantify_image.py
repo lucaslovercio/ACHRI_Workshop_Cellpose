@@ -54,7 +54,7 @@ def main():
     img_not_rounded_cells = get_img_from_idx_cells(img_segmentation, not_compact_idx)
     
     #Get big cells
-    vector_area_per_cell, big_cells_idx = detect_big_cells(cell_props, th_size=th_size)
+    vector_area_per_cell, big_cells_idx_ = detect_big_cells(cell_props, th_size=th_size)
     img_big_cells = get_img_from_idx_cells(img_segmentation, big_cells_idx)
     
     #Save CSV
