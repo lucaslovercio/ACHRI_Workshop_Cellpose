@@ -35,3 +35,7 @@ matplotlib
 scikit-image
 pandas
 csv
+
+### Misc
+
+If you are downloading an updated version of this or other software in this repository, please download or clone the entire repository, not just the script of your interest. This is due to a constant refactoring of this repository as new projects are incorporated.
