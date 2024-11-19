@@ -29,7 +29,7 @@ channels = [[0,0]] #Same channels as training
 diam_nuclei = 100
 min_pixels_matching = 2000
 th_size_noisy_cells = 1000
-disk_diameter = 30
+disk_diameter = 90
 fontsize = 10
 
 level_01_diam = None
