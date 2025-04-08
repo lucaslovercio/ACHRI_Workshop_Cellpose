@@ -20,11 +20,11 @@ pattern_channel_cyto = ''
 
 folder_images = '' # Folder where all your images must be
 
-folder_models = '' # The two next models must be in the same folder
+folder_models = ''   # The two next models must be in the same folder. In Windows, place an r before the ''.
 name_model_level_01 = 'well_defined_diam_100_cyto_100_ji_0.4027.114269'
 name_model_level_02 = 'less_defined_model_nuclei_diam_50_ji_0.405.265445'
 
-path_model_nuclei_trained  = 'DAPI_diam50_cyto2.792364' # Complete the full path for this model
+path_model_nuclei_trained  = 'DAPI_diam50_cyto2.792364' # Complete the full path for this model   #In Windows, place an r before the ''
 
 flag_normalize = True # Recommended: True
 flag_gpu = False # True is you have a configured GPU for PyTorch
@@ -79,6 +79,8 @@ color_plate = [150, 150, 0]
 ##############################################################################
 ##############################################################################
 
+import matplotlib as mpl
+mpl.use('Qt5Agg') # For windows
 import numpy as np
 from cellpose import models
 from cellpose.io import imread
@@ -180,7 +182,7 @@ def main():
         flag_het = 'het' in sample_name.lower()
         flag_mut = ('ko' in sample_name.lower()) or ('mut' in sample_name.lower())
         
-        str_margin = '_Margin' + str(margin) + '_keeping_nuclei_dapiShuhibaTrained_percMatching' + \
+        str_margin = '_Margin' + str(margin) + \
             '_SEBack' + str(disk_diameter_background) + '_AndNoCellAssoc' + str(disk_diameter_free_cell)
         
         str_remove_objects_in_edge = ''
