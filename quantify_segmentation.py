@@ -22,6 +22,8 @@ folder_segmentations = ''
 ending_segmentation = '_cellpose.png'
 flag_show = True
 th_size = 10000
+from scipy.ndimage import label
+from scipy import ndimage
 
 ##############################################################################
 
@@ -116,6 +118,42 @@ def get_img_from_idx_cells(img_segmentation, list_idx):
         
     return img_result
 
+def matching_label_pairs_perc(matrix1, matrix2, min_perc = 0.5):
+    # Convert matrices to NumPy arrays
+    array1 = np.array(matrix1)
+    array2 = np.array(matrix2)
+
+    unique_labels_matrix1 = np.unique(array1)
+    
+    # Initialize a list to store matching label pairs
+    matching_pairs = []
+
+    # Iterate over unique labels in matrix1
+    for label1 in unique_labels_matrix1:
+        # Find indices where the label appears in matrix1
+        indices_matrix1 = np.where(array1 == label1)
+        number_pixels_obj_1 = np.count_nonzero(array1 == label1)
+        # print(number_pixels_obj)
+
+        # Extract corresponding labels from matrix2
+        corresponding_labels_matrix2 = array2[indices_matrix1]
+
+        # Iterate over unique labels in matrix2 corresponding to label1 in matrix1
+        for label2 in np.unique(corresponding_labels_matrix2):
+            # second object size
+            number_pixels_obj_2 = np.count_nonzero(array2 == label2)
+            
+            n_pixels_and= np.count_nonzero(corresponding_labels_matrix2 == label2)
+            perc_matching = n_pixels_and/np.min([number_pixels_obj_1,number_pixels_obj_2])
+            
+            if perc_matching>min_perc:
+                matching_pairs.append((label1, label2))
+            
+    matching_pairs_non_zero_left = [elem for elem in matching_pairs if elem[0] != 0]
+    matching_pairs_non_zero = [elem for elem in matching_pairs if (elem[0] != 0 and elem[1] != 0)]
+
+    return matching_pairs, matching_pairs_non_zero_left, matching_pairs_non_zero
+
 def matching_label_pairs(matrix1, matrix2, min_pixels = 0):
     # Convert matrices to NumPy arrays
     array1 = np.array(matrix1)
@@ -146,29 +184,52 @@ def matching_label_pairs(matrix1, matrix2, min_pixels = 0):
 
     return matching_pairs, matching_pairs_non_zero_left, matching_pairs_non_zero
 
+def __correspondace_segmentations__(img_segmentation_a, img_segmentation_b, \
+                                    matching_pairs_a_to_b, matching_pairs_a_to_b_non_zero_left, matching_pairs_a_to_b_non_zero):
+    if len(matching_pairs_a_to_b_non_zero) > 0:
+        a_labels = np.array(matching_pairs_a_to_b_non_zero)[:, 0]
+        unique_values_a_to_b, indices, counts = np.unique(a_labels, return_index=True, return_counts=True)
+        #Repeated a labels
+        repeated_indices = indices[counts > 1]
+        a_labels_repeated = a_labels[repeated_indices]
+        pairs_a_to_b_non_zero_repeated_binary = np.isin(a_labels, a_labels_repeated).astype(int)
+        matching_pairs_a_to_b_non_zero_repeated = [matching_pairs_a_to_b_non_zero[i] for i in np.nonzero(pairs_a_to_b_non_zero_repeated_binary>0)[0]]
+        
+        # Left only nuclei and cells listed as with multiple nuclei
+        mask = np.isin(img_segmentation_a, a_labels_repeated)
+        img_segmentation_a_modified = np.where(mask, img_segmentation_a, 0)
+        img_segmentation_b_modified = img_segmentation_b
+        if len(matching_pairs_a_to_b_non_zero_repeated) > 0:
+            b_labels = np.array(matching_pairs_a_to_b_non_zero_repeated)[:, 1]
+            mask = np.isin(img_segmentation_b, b_labels)
+            img_segmentation_b_modified = np.where(mask, img_segmentation_b, 0)
+            # print(a_labels_repeated)
+    else:
+        a_labels_repeated = []
+        img_segmentation_a_modified = np.zeros_like(img_segmentation_a)
+        img_segmentation_b_modified = np.zeros_like(img_segmentation_b)
+    return img_segmentation_a_modified, img_segmentation_b_modified, a_labels_repeated
+
+def get_correspondance_segmentations_perc(img_segmentation_a, img_segmentation_b, min_perc=0.499):
+        
+    #Correspondance nuclei to cell
+    matching_pairs_a_to_b, matching_pairs_a_to_b_non_zero_left, matching_pairs_a_to_b_non_zero =\
+        matching_label_pairs_perc(img_segmentation_a, img_segmentation_b, min_perc=min_perc)
+    
+    img_segmentation_a_modified, img_segmentation_b_modified, a_labels_repeated = __correspondace_segmentations__(img_segmentation_a, img_segmentation_b, \
+                                        matching_pairs_a_to_b, matching_pairs_a_to_b_non_zero_left, matching_pairs_a_to_b_non_zero)
+    
+    return img_segmentation_a_modified, img_segmentation_b_modified, a_labels_repeated
+
 def get_correspondance_segmentations(img_segmentation_a, img_segmentation_b, min_pixels_matching=0):
         
     #Correspondance nuclei to cell
     matching_pairs_a_to_b, matching_pairs_a_to_b_non_zero_left, matching_pairs_a_to_b_non_zero =\
         matching_label_pairs(img_segmentation_a, img_segmentation_b, min_pixels=min_pixels_matching)
     
-    a_labels = np.array(matching_pairs_a_to_b_non_zero)[:, 0]
-    unique_values_a_to_b, indices, counts = np.unique(a_labels, return_index=True, return_counts=True)
-    #Repeated a labels
-    repeated_indices = indices[counts > 1]
-    a_labels_repeated = a_labels[repeated_indices]
-    pairs_a_to_b_non_zero_repeated_binary = np.isin(a_labels, a_labels_repeated).astype(int)
-    matching_pairs_a_to_b_non_zero_repeated = [matching_pairs_a_to_b_non_zero[i] for i in np.nonzero(pairs_a_to_b_non_zero_repeated_binary>0)[0]]
+    img_segmentation_a_modified, img_segmentation_b_modified, a_labels_repeated = __correspondace_segmentations__(img_segmentation_a, img_segmentation_b, \
+                                        matching_pairs_a_to_b, matching_pairs_a_to_b_non_zero_left, matching_pairs_a_to_b_non_zero)
     
-    # Left only nuclei and cells listed as with multiple nuclei
-    mask = np.isin(img_segmentation_a, a_labels_repeated)
-    img_segmentation_a_modified = np.where(mask, img_segmentation_a, 0)
-    img_segmentation_b_modified = img_segmentation_b
-    if len(matching_pairs_a_to_b_non_zero_repeated) > 0:
-        b_labels = np.array(matching_pairs_a_to_b_non_zero_repeated)[:, 1]
-        mask = np.isin(img_segmentation_b, b_labels)
-        img_segmentation_b_modified = np.where(mask, img_segmentation_b, 0)
-        # print(a_labels_repeated)
     return img_segmentation_a_modified, img_segmentation_b_modified, a_labels_repeated
 
 def get_join_properties(matching_pairs_a_to_b, props_a, props_b, suffixes=['_x', '_y']):
@@ -186,16 +247,18 @@ def get_join_properties(matching_pairs_a_to_b, props_a, props_b, suffixes=['_x',
     return df_merge_n_n
 
 
-def get_cells_in_edges(cell_props_membrane, n_row, n_col):
+def get_cells_in_edges(cell_props, n_row, n_col, margin = 1):
     vector_labels_in_edge = []
     
-    for cell_prop in cell_props_membrane:
+    for cell_prop in cell_props:
         (min_row, min_col, max_row, max_col) = cell_prop.bbox
         
-        if min_row <=0 or min_col <= 0 or max_row >= n_row or max_col >= n_col:
+        # if min_row <=0 or min_col <= 0 or max_row >= n_row or max_col >= n_col:
+        if min_row <=margin or min_col <= margin or max_row >= n_row-margin or max_col >= n_col-margin:
             vector_labels_in_edge.append(cell_prop.label)
     
     return vector_labels_in_edge
+
 
 def delete_cells_in_edges(cell_props_membrane, vector_labels_in_edge):
     cell_props_membrane_not_in_edge = []
@@ -216,6 +279,50 @@ def delete_nuclei_of_cells_in_edges(matching_nuclei_membrane):
         else:
             vector_pos_nuclei_to_keep.append(pair[0])
     return vector_pos_nuclei_to_delete, vector_pos_nuclei_to_keep
+
+def get_largest_empty_space(mask, structure_closing):
+    
+    mask_closed = ndimage.binary_closing(mask, structure=structure_closing, border_value=1)
+    mask_closed = np.logical_not(mask_closed) #empty spaces are 0, as the background, and it will not be labelled. that is why it is inverted
+    # Label the connected components for background detection
+    labeled_array, num_regions = label(mask_closed)
+    
+    # Find the largest connected component
+    largest_component = np.zeros_like(mask_closed)
+    if num_regions > 0:
+        component_sizes = [(labeled_array == i).sum() for i in range(1, num_regions + 2)]
+        largest_component_index = np.argmax(component_sizes) +1 #because labels start from 1
+        largest_component = (labeled_array == largest_component_index)
+        
+    return largest_component, labeled_array, mask_closed
+
+def get_large_empty_spaces(mask, structure_closing, th_size_px = 1000):
+    
+    large_spaces = np.zeros_like(mask) == 1 #To have a boolean matrix
+    mask_closed = ndimage.binary_closing(mask, structure=structure_closing, border_value=1)
+    mask_closed = np.logical_not(mask_closed) #empty spaces are 0, as the background, and it will not be labelled. that is why it is inverted
+    # Label the connected components for background detection
+    labeled_array, num_regions = label(mask_closed)
+        
+    if num_regions > 0:
+        component_sizes = [(labeled_array == i).sum() for i in range(0, num_regions + 2)]
+        
+        for j in range(1, len(component_sizes)):
+            if component_sizes[j]>th_size_px:
+                large_spaces[labeled_array==j] = True
+            
+    return large_spaces, labeled_array, mask_closed
+
+def remove_objects_in_edge(img_segmentation, margin = 1):
+    [n_row, n_col] = img_segmentation.shape
+    cell_props = get_props_per_cell(img_segmentation)
+    labels_cells = get_cells_in_edges(cell_props,n_row, n_col, margin = margin)
+    for i in labels_cells:
+        img_segmentation[img_segmentation == i]=0
+        
+    return img_segmentation
+
+
 
 def get_density_bins(cell_props, img_width, img_height, axis=1, n_bins=20):
     vector_axis_pos = []
@@ -409,31 +516,6 @@ def remove_overlapping_segmentation(segmentation_to_clean, img_segmentation, min
             img_segmentation_filtered[img_0] = 0
             
     return img_segmentation_filtered
-        
-def draw_roi_over_image(img_original_normalized, img_segmentation):
-    image_uint8 = (np.copy(img_original_normalized) * 255).astype(np.uint8)
-    #del img_original_normalized
-    # Find unique object labels, excluding the background label 0
-    object_labels = np.unique(img_segmentation)
-    object_labels = object_labels[object_labels != 0]
-    
-    # Create a color image from the greyscale image for visualization
-    color_image = cv2.cvtColor(image_uint8, cv2.COLOR_GRAY2BGR)
-    
-    for label in object_labels:
-        # Create a mask for the current object
-        mask = img_segmentation == label
-        
-        # Find the bounding box coordinates for the current object
-        y_indices, x_indices = np.where(mask)
-        x_min, x_max = x_indices.min(), x_indices.max()
-        y_min, y_max = y_indices.min(), y_indices.max()
-        
-        # Draw a red rectangle (BGR color space) around the object
-        cv2.rectangle(color_image, (x_min, y_min), (x_max, y_max), (255, 0, 0), 2)
-    
-    del image_uint8
-    return color_image        
 
 def get_areas(cell_props):
     list_areas = []
@@ -442,24 +524,6 @@ def get_areas(cell_props):
             
     return list_areas 
 
-def overlap_mask_over_image_rgb(color_image, mask, color_add = [0, 50, 0]):
-    color_image = np.float32(color_image) #need to convert to float to avoid overflow
-    color_image[mask == 1] =  color_image[mask == 1] + color_add
-    color_image[color_image>=255] = 255 #control values
-    color_image = np.uint8(color_image) #back to uint8
-    return color_image
-
-def draw_mask_over_image_rgb(color_image, mask, color_mask = [0, 255, 0]):
-    color_image[mask == 1] =  color_mask
-    return color_image
-
-def draw_mask_over_image(img_original_normalized, mask, color_mask = [0, 255, 0]):
-    image_uint8 = (img_original_normalized * 255).astype(np.uint8)
-    del img_original_normalized
-    # Create a color image from the greyscale image for visualization
-    color_image = cv2.cvtColor(image_uint8, cv2.COLOR_GRAY2BGR)
-    color_image[mask == 1] =  color_mask # BGR color for green
-    return color_image
 
 if __name__ == "__main__":
     main()

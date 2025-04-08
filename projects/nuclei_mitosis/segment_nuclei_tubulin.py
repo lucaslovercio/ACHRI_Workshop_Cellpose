@@ -53,7 +53,7 @@ from quantify_segmentation import get_props_per_cell, matching_label_pairs,\
 from skimage import measure
 import cv2
 from scipy import ndimage
-from quantify_segmentation import draw_roi_over_image
+from aux_functions.draw_roi_over_image import draw_roi_over_image
 
 if os.path.exists(path_model_regular_nuclei) and os.path.exists(path_model_mitotic_nuclei) and\
     os.path.exists(path_model_xy_mitotic) and os.path.exists(path_model_tubulin_mitosis) and\

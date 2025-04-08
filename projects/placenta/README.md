@@ -12,7 +12,11 @@ This project is to analyze morphology of nuclei and cytoplasms.
 
 ### segment_quantify_nuclei_membrane.py
 
-Script for segmentation and quantification.
+Script for segmentation and quantification of cells in the placenta, particularly to quantify the number of multinuclei cells. The Zo1 signal should be well defined, without cracks.
+
+### script_compute_fusion_of_cells.py
+
+Script for quantifying the fusion of cells, by segmenting the cells at different of continuity of the Zo1 signal. Along with the result of these segmentations, the nuclei segmentation and matching with cells complement the analysis.
 
 ### show_nuclei_membrane_segmentation.py
 
