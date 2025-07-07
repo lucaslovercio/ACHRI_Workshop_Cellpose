@@ -106,7 +106,7 @@ def main():
         
         path_image = os.path.join(folder_input, file_image)
         
-        folder_output_sample = os.path.join(folder_output, file_image + '_pericytesInVessel' + str(channels_pericytes_in_vessel) + '_pericytesAll' + str(channels_all_pericytes))
+        folder_output_sample = os.path.join(folder_output, file_image)
         
         if not os.path.exists(folder_output_sample):
             os.makedirs(folder_output_sample)
