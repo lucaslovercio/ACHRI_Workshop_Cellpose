@@ -16,7 +16,7 @@ sys.path.append(root_path)
 pattern_channel_dapi = 'DAPI_'
 pattern_channel_Zo1 = 'ZO1_'
 pattern_channel_mask = 'MASK_'
-pattern_channel_cyto = ''
+pattern_channel_cyto = 'DLX3_'
 
 folder_images = '' # Folder where all your images must be
 
@@ -28,8 +28,8 @@ path_model_nuclei_trained  = 'DAPI_diam50_cyto2.792364' # Complete the full path
 
 flag_normalize = True # Recommended: True
 flag_gpu = False # True is you have a configured GPU for PyTorch
-flag_has_empty_space = False # Does your image have a space without cells?
-flag_cyto = False # Is there a cyto marker to help to detect the empty space in your image?
+flag_has_empty_space = True # Does your image have a space without cells?
+flag_cyto = True # Is there a cyto marker to help to detect the empty space in your image?
 flag_remove_objects_in_edge = True # Do you want to remove from the analysis incomplete cells and nuclei in the edge of the image?
 
 ###################################  MORE PARAMETERS   #########################
@@ -90,7 +90,8 @@ from skimage.segmentation import expand_labels
 from skimage.morphology import dilation, square
 from skimage import filters
 from quantify_segmentation import matching_label_pairs, matching_label_pairs_perc, get_correspondance_segmentations_perc, get_img_from_idx_cells, \
-    get_props_per_cell, get_areas, detect_big_cells, remove_overlapping_segmentation, get_large_empty_spaces, remove_objects_in_edge
+    get_props_per_cell, get_areas, detect_big_cells, remove_overlapping_segmentation, get_large_empty_spaces, remove_objects_in_edge, \
+    get_number_of_nuclei_per_cell, get_number_of_cells_by_nuclei_count
 from scipy import ndimage
 # from scipy.ndimage import label #, gaussian_filter
 from skimage.morphology import disk
@@ -127,9 +128,10 @@ def main():
     # image_filenames = image_filenames[0:4]
     
     # Create an empty DataFrame with the required columns
-    df = pd.DataFrame(columns=["SampleName", "FusionIndex([B+C]/A)", "RatioFirmCellsVsUniCells(E/D)", "RatioPorousCellsVsUniCells([F-E]/D)", \
-                               "RatioNucleiInMultinucleateCellsVsTotalNuclei(C/A)", \
-                               "", "RatioFirmCellsVsTotalCells(E/F)", "RatioNucleiInUnicellsVsTotalNuclei(D/A)"]) # Leave empty column
+    df = pd.DataFrame(columns=["SampleName", "FusionIndex([B+C]/A)", "NatComm2023(B/D)", "RatioFirmCellsVsUniCells(E/D)", "RatioPorousCellsVsUniCells([F-E]/D)", \
+                           "RatioNucleiInMultinucleateCellsVsTotalNuclei(C/A)", \
+                           "RatioFirmCellsVsTotalCells(E/F)", "RatioNucleiInUnicellsVsTotalNuclei(D/A)","",\
+                               'Total nuclei (A)', 'Syncytial nuclei (B)', 'Nuclei in multinucleate cells (C)', 'Nuclei in uninucleate cells (D)', 'Firm membrane (E)', 'All cells (F)']) # Leave empty column
     
     vector_FusionIndex_wt = []
     vector_FusionIndex_mut = []
@@ -154,6 +156,19 @@ def main():
     vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_wt = []
     vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_mut = []
     vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_het = []
+    
+    # Metrics June 2025
+    vector_NatComm2023_wt = []
+    vector_NatComm2023_mut = []
+    vector_NatComm2023_het = []
+
+    vector_2NucleiLevel01_wt = []
+    vector_2NucleiLevel01_mut = []
+    vector_2NucleiLevel01_het = []
+
+    vector_2NucleiLevel04_wt = []
+    vector_2NucleiLevel04_mut = []
+    vector_2NucleiLevel04_het = []
     
     for filename_nuclei in image_filenames:
         plt.close('all')
@@ -233,7 +248,9 @@ def main():
                     img_original_cyto = get_one_channel(img_original_cyto)
                     img_original_cyto = functionPercNorm( np.single(img_original_cyto))
             
-            
+            if not (os.path.isfile(path_model_trained_level_01) and os.path.isfile(path_model_trained_level_04) and os.path.isfile(path_model_nuclei_trained)):
+                print(f"Error: One or more trained models were not found.")
+                sys.exit(1)  # Exit with an error code
             model_trained_01 = models.CellposeModel(pretrained_model=path_model_trained_level_01, gpu=flag_gpu)
             img_segmentation_01, _, _ = model_trained_01.eval(img_original_Zo1, diameter=level_01_diam, channels= channels)
             del model_trained_01
@@ -468,19 +485,19 @@ def main():
             
             # Count the number of positive (True) pixels
             px_syncitial = np.sum(largest_component_no_cell)
-            print("Number of no_cell pixels:", px_syncitial)
+            # print("Number of no_cell pixels:", px_syncitial)
             
             plate = np.logical_and(np.logical_not(largest_component_background), np.logical_not(img_excluded_region > 0)) # Do not count exlusion
             img_plate_bgr = overlap_mask_over_image_rgb(img_composition_bgr, plate, color_add = color_plate)
             filename_plate = os.path.join(folder_output_intermediate_output, sample_name + '_valid_plate.png')
             cv2.imwrite(filename_plate, img_plate_bgr)
             px_plate = np.sum(plate)
-            print("Number of plate pixels:", px_plate)
+            # print("Number of plate pixels:", px_plate)
             
             ratio_syncitial_plate = float(px_syncitial) / float(px_plate + 0.0000001)
             nuclei_in_syncitial = len(np.unique(list_nuclei_in_syncitial))
             ratio_nuclei_syncitial = float(nuclei_in_syncitial) / float(total_nuclei + 0.0000001)
-            print("total_nuclei:", total_nuclei)
+            # print("total_nuclei:", total_nuclei)
                     
             n_cells_multiple_nuclei_level_01 = len(np.unique(img_segmentation_membrane_multiple_nuclei_level_01))-1 #0 is background
             n_cells_multiple_nuclei_level_04 = len(np.unique(img_segmentation_membrane_multiple_nuclei_level_04))-1 #0 is background
@@ -516,6 +533,19 @@ def main():
             ratio_nuclei_in_uninucleited_cells_over_total_nuclei = n_nuclei_in_uninucleited_cells / total_nuclei
             ratio_nuclei_in_multinucleated_cells_over_total_nuclei = n_nuclei_sharing_membrane_level_04 / total_nuclei
             
+            ######################### New Metrics June 20 ##########################################
+        
+            nat_comm_2023_sync_over_uni = nuclei_in_syncitial / n_nuclei_in_uninucleited_cells
+        
+            dict_cell_level04_nuclei_count = get_number_of_nuclei_per_cell(matching_pairs_a_to_b_non_zero_level_04)
+            total_two_nuclei_cells_level04 = get_number_of_cells_by_nuclei_count(dict_cell_level04_nuclei_count, 2)
+            ratio_two_nuclei_level04 = np.float32(total_two_nuclei_cells_level04) / np.float32(n_cells_level_04)
+        
+            _, _, matching_pairs_a_to_b_non_zero_level_01 = matching_label_pairs_perc(img_segmentation_nuclei, img_segmentation_01)
+            dict_cell_level01_nuclei_count = get_number_of_nuclei_per_cell(matching_pairs_a_to_b_non_zero_level_01)
+            total_two_nuclei_cells_level01 = get_number_of_cells_by_nuclei_count(dict_cell_level01_nuclei_count, 2)
+            ratio_two_nuclei_level01 = np.float32(total_two_nuclei_cells_level01) / np.float32(n_cells_level_01)
+            
             #####################################################################################################
             ##################################   GENERATE OUTPUTS    ############################################
             #####################################################################################################
@@ -530,12 +560,13 @@ def main():
             plt.legend()
             plt.savefig(os.path.join(folder_output_intermediate_output, sample_name + '_n_cells_fitting.png'), dpi=400)
             
-            #                 "SampleName", "fusion_index", "RatioFirmCellsVsUninucleateCells(E/D)", "RatioPorousCellsVsUninucleateCells([F-E]/D)"
-            df.loc[len(df)] = [sample_name, fusion_index,    ratio_firm_over_uninucleate,             ratio_porous_over_uninucleate, \
-                               # "RatioNucleiInMultinucleateCellsVsTotalNuclei(C/A)"
-                               ratio_nuclei_in_multinucleated_cells_over_total_nuclei, \
+            #                 "SampleName", "fusion_index", "nat_comm_2023_sync_over_uni", "RatioFirmCellsVsUninucleateCells(E/D)", "RatioPorousCellsVsUninucleateCells([F-E]/D)"
+            df.loc[len(df)] = [sample_name, fusion_index,    nat_comm_2023_sync_over_uni, ratio_firm_over_uninucleate,             ratio_porous_over_uninucleate, \
+                           # "RatioNucleiInMultinucleateCellsVsTotalNuclei(C/A)"
+                           ratio_nuclei_in_multinucleated_cells_over_total_nuclei, \
             #                 "empty col", "RatioFirmCellsVsTotalCells(E/F)", "RatioNucleiInUnicellsVsTotalNuclei(D/A)"
-                               None,        ratio_firm_over_total_cells,      ratio_nuclei_in_uninucleited_cells_over_total_nuclei]
+                           ratio_firm_over_total_cells,      ratio_nuclei_in_uninucleited_cells_over_total_nuclei,
+                           None, total_nuclei, nuclei_in_syncitial, n_nuclei_sharing_membrane_level_04, n_nuclei_in_uninucleited_cells, n_cells_level_01, n_cells_level_04]
             txt_output = os.path.join(folder_output, sample_name + '_summary.txt')
             f = open(txt_output, "w")
             
@@ -558,6 +589,14 @@ def main():
     
             f.write('Ratio of firm cells over total uninucleate cells (E/D): ' + str(ratio_firm_over_uninucleate ) + '\n')
             f.write('Ratio of porous cells over total uninucleate cells ([F-E]/D): ' + str(ratio_porous_over_uninucleate ) + '\n')
+            
+            f.write('\n------------------------------------------------------- \n')
+            f.write('\n NEW STATS June 2025 \n')
+            f.write('NatComm2023 : Syncytial nuclei (B) / Nuclei in uninucleate cells (D) : ' + str(nat_comm_2023_sync_over_uni) + '\n')
+            f.write('2-nuclei cells firm cells: '    + str(total_two_nuclei_cells_level01)+' \n')
+            f.write('2-nuclei cells porous cells: '  + str(total_two_nuclei_cells_level04)+' \n')
+            f.write('2-nuclei cells firm cells / total firm cells (E): ' + str(ratio_two_nuclei_level01)+' \n')
+            f.write('2-nuclei cells porous cells / total cells (F): '    + str(ratio_two_nuclei_level04)+' \n')
             
             f.write('\n------------------------------------------------------- \n')
             f.write('Total cells per level:\n')
@@ -877,6 +916,9 @@ def main():
                 vector_RatioFirmCellsVsTotalCells_wt.append(ratio_firm_over_total_cells)
                 vector_RatioNucleiInUnicellsVsTotalNuclei_wt.append(ratio_nuclei_in_uninucleited_cells_over_total_nuclei)
                 vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_wt.append(ratio_nuclei_in_multinucleated_cells_over_total_nuclei)
+                vector_NatComm2023_wt.append(nat_comm_2023_sync_over_uni)
+                vector_2NucleiLevel01_wt.append(ratio_two_nuclei_level01)
+                vector_2NucleiLevel04_wt.append(ratio_two_nuclei_level04)
             elif flag_mut:
                 vector_FusionIndex_mut.append(fusion_index)
                 vector_RatioFirmCellsVsUniCells_mut.append(ratio_firm_over_uninucleate)
@@ -884,6 +926,9 @@ def main():
                 vector_RatioFirmCellsVsTotalCells_mut.append(ratio_firm_over_total_cells)
                 vector_RatioNucleiInUnicellsVsTotalNuclei_mut.append(ratio_nuclei_in_uninucleited_cells_over_total_nuclei)
                 vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_mut.append(ratio_nuclei_in_multinucleated_cells_over_total_nuclei)
+                vector_NatComm2023_mut.append(nat_comm_2023_sync_over_uni)
+                vector_2NucleiLevel01_mut.append(ratio_two_nuclei_level01)
+                vector_2NucleiLevel04_mut.append(ratio_two_nuclei_level04)
             elif flag_het:
                 vector_FusionIndex_het.append(fusion_index)
                 vector_RatioFirmCellsVsUniCells_het.append(ratio_firm_over_uninucleate)
@@ -891,6 +936,9 @@ def main():
                 vector_RatioFirmCellsVsTotalCells_het.append(ratio_firm_over_total_cells)
                 vector_RatioNucleiInUnicellsVsTotalNuclei_het.append(ratio_nuclei_in_uninucleited_cells_over_total_nuclei)
                 vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_het.append(ratio_nuclei_in_multinucleated_cells_over_total_nuclei)
+                vector_NatComm2023_het.append(nat_comm_2023_sync_over_uni)
+                vector_2NucleiLevel01_het.append(ratio_two_nuclei_level01)
+                vector_2NucleiLevel04_het.append(ratio_two_nuclei_level04)
                 
             del cells_and_nuclei_mask, largest_component_background, mask_closed, image_input_nuclei, image_input_Zo1
             del image_input_cyto, img_composition_sum_cell, img_composition_nuclei_bgr
@@ -918,10 +966,10 @@ def main():
     
     plot_and_save_boxplot(vector_FusionIndex_wt,vector_FusionIndex_mut,vector_FusionIndex_het,'Fusion_index')
     plot_and_save_boxplot(vector_RatioFirmCellsVsUniCells_wt,vector_RatioFirmCellsVsUniCells_mut,vector_RatioFirmCellsVsUniCells_het,'RatioFirmCellsVsUniCells')
-    plot_and_save_boxplot(vector_RatioPorousCellsVsUniCells_wt,vector_RatioPorousCellsVsUniCells_mut,vector_RatioPorousCellsVsUniCells_het,'RatioPorousCellsVsUniCells')
     plot_and_save_boxplot(vector_RatioFirmCellsVsTotalCells_wt,vector_RatioFirmCellsVsTotalCells_mut,vector_RatioFirmCellsVsTotalCells_het,'RatioFirmCellsVsTotalCells')
     plot_and_save_boxplot(vector_RatioNucleiInUnicellsVsTotalNuclei_wt,vector_RatioNucleiInUnicellsVsTotalNuclei_mut,vector_RatioNucleiInUnicellsVsTotalNuclei_het,'RatioNucleiInUnicellsVsTotalNuclei')
     plot_and_save_boxplot(vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_wt,vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_mut,vector_RatioNucleiInMultinucleateCellsVsTotalNuclei_het,'RatioNucleiInMultinucleateCellsVsTotalNuclei')
+    plot_and_save_boxplot(vector_NatComm2023_wt,vector_NatComm2023_mut,vector_NatComm2023_het,'NatComm2023-RatioNucleiInSyncVsNucleiInUnicells')
     
     plt.close('all')
 
