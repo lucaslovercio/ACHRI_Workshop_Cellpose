@@ -522,7 +522,26 @@ def get_areas(cell_props):
     for cell_prop in cell_props:
         list_areas.append(cell_prop.area)
             
-    return list_areas 
+    return list_areas
+    
+def get_number_of_nuclei_per_cell(matching_pairs_nuclei_cell):
+    dict_cell_nuclei_count = {}
+    for pair_nuclei_cell in matching_pairs_nuclei_cell:
+        key_cell = pair_nuclei_cell[1]
+        if key_cell in dict_cell_nuclei_count:
+            dict_cell_nuclei_count[key_cell] = dict_cell_nuclei_count[key_cell] + 1
+        else:
+            dict_cell_nuclei_count[key_cell] = 1
+    return dict_cell_nuclei_count
+
+def get_number_of_cells_by_nuclei_count(dict_cell_nuclei_count, number_nuclei):
+    keys_list = list(dict_cell_nuclei_count.keys())
+    n_cells = 0
+    for key_cell in keys_list:
+        n_nuclei = dict_cell_nuclei_count[key_cell]
+        if n_nuclei == number_nuclei:
+            n_cells = n_cells + 1
+    return n_cells
 
 
 if __name__ == "__main__":
