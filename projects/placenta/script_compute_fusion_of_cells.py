@@ -692,7 +692,7 @@ def main():
             plt.gca().set_title('Nuclei in same cells: ' + str( n_nuclei_sharing_membrane_level_04), fontsize=fontsize)
             
             figManager = plt.get_current_fig_manager()
-            figManager.window.showMaximized()
+            # figManager.window.showMaximized() # Not working correctly in Windows
             # plt.show()
             
             plt.savefig(os.path.join(folder_output_intermediate_output, sample_name + '_sharpness_cells.png'), dpi=400)

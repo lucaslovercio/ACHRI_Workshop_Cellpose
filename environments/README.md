@@ -23,7 +23,10 @@
 
 1. Go to the official website: [https://www.python.org/downloads](https://www.python.org/downloads)
 2. Download **Python 3.x (64-bit)** for Windows
-3. **IMPORTANT:** During installation, **check the box** that says: **"Add Python to PATH"**
+3. **IMPORTANT:** During installation:
+   - Check **"Add Python to PATH"**
+   - At the end of the installation, click **"Disable path length limit"**  
+     (to avoid problems saving files with long names on older versions of Windows)
 4. Click **"Install Now"** and wait for it to finish.
 
 ---
