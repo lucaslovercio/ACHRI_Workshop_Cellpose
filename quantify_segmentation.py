@@ -14,6 +14,8 @@ import numpy as np
 import csv
 import pandas
 import cv2
+from scipy.ndimage import binary_dilation, binary_erosion
+from skimage.morphology import disk
 
 ###################################   PARAMETERS   #########################
 
@@ -133,7 +135,6 @@ def matching_label_pairs_perc(matrix1, matrix2, min_perc = 0.5):
         # Find indices where the label appears in matrix1
         indices_matrix1 = np.where(array1 == label1)
         number_pixels_obj_1 = np.count_nonzero(array1 == label1)
-        # print(number_pixels_obj)
 
         # Extract corresponding labels from matrix2
         corresponding_labels_matrix2 = array2[indices_matrix1]
@@ -203,7 +204,6 @@ def __correspondace_segmentations__(img_segmentation_a, img_segmentation_b, \
             b_labels = np.array(matching_pairs_a_to_b_non_zero_repeated)[:, 1]
             mask = np.isin(img_segmentation_b, b_labels)
             img_segmentation_b_modified = np.where(mask, img_segmentation_b, 0)
-            # print(a_labels_repeated)
     else:
         a_labels_repeated = []
         img_segmentation_a_modified = np.zeros_like(img_segmentation_a)
@@ -238,14 +238,11 @@ def get_join_properties(matching_pairs_a_to_b, props_a, props_b, suffixes=['_x',
     df_b = pandas.DataFrame.from_records([b1.to_dict() for b1 in props_b])
     df_a_b = pandas.DataFrame(matching_pairs_a_to_b,columns=["a", "b"])
     
-    #resultdf=df_a.merge(df_b,how="inner",on="label")
-    
     df_merge_a = df_a_b.merge(df_a, how='inner', on=None, left_on='a', right_on='label', suffixes=[suffixes[0],'_aux'])
     
     df_merge_n_n = df_merge_a.merge(df_b, how='inner', on=None, left_on='b', right_on='label', suffixes=suffixes)
     
     return df_merge_n_n
-
 
 def get_cells_in_edges(cell_props, n_row, n_col, margin = 1):
     vector_labels_in_edge = []
@@ -253,7 +250,6 @@ def get_cells_in_edges(cell_props, n_row, n_col, margin = 1):
     for cell_prop in cell_props:
         (min_row, min_col, max_row, max_col) = cell_prop.bbox
         
-        # if min_row <=0 or min_col <= 0 or max_row >= n_row or max_col >= n_col:
         if min_row <=margin or min_col <= margin or max_row >= n_row-margin or max_col >= n_col-margin:
             vector_labels_in_edge.append(cell_prop.label)
     
@@ -270,7 +266,6 @@ def delete_cells_in_edges(cell_props_membrane, vector_labels_in_edge):
     return cell_props_membrane_not_in_edge
 
 def delete_nuclei_of_cells_in_edges(matching_nuclei_membrane):
-    #print(matching_nuclei_membrane)
     vector_pos_nuclei_to_delete = []
     vector_pos_nuclei_to_keep = []
     for pair in matching_nuclei_membrane:
@@ -322,8 +317,6 @@ def remove_objects_in_edge(img_segmentation, margin = 1):
         
     return img_segmentation
 
-
-
 def get_density_bins(cell_props, img_width, img_height, axis=1, n_bins=20):
     vector_axis_pos = []
     
@@ -332,7 +325,6 @@ def get_density_bins(cell_props, img_width, img_height, axis=1, n_bins=20):
             vector_axis_pos.append(cell_prop.xCentroid)
         else:
             vector_axis_pos.append(cell_prop.yCentroid)
-    #vector_axis_pos = np.unique(vector_axis_pos)
             
     count, edges = np.histogram(vector_axis_pos, bins=n_bins, range=(0, img_height))
     return count, edges
@@ -347,6 +339,31 @@ def get_centroids(cell_props, bbox = None):
             if xmin <= cell_prop.xCentroid < xmax and ymin <= cell_prop.yCentroid < ymax:
                 list_centroids.append([cell_prop.xCentroid,cell_prop.yCentroid])
     return list_centroids
+
+def get_intensity_per_cell(cells_id, img_segmentation_cells, channel):
+    vector_intensity_nuclei_in_cell = np.float32(np.zeros_like(cells_id)) #To store the number of pxs in a cell belonging to its nuclei
+    vector_intensity_mean_nuclei_in_cell = np.float32(np.zeros_like(cells_id))
+    for i in range(len(cells_id)):
+        cell_id = cells_id[i]
+        if cell_id>0: # Do not count in background
+            px_nuclei_in_cell = np.sum(np.float32(channel[img_segmentation_cells==cell_id])) #Number of pixels of nuclei
+            vector_intensity_nuclei_in_cell[i] = px_nuclei_in_cell
+            px_count = np.sum(np.float32(img_segmentation_cells==cell_id))
+            mean_intensity = px_nuclei_in_cell / px_count
+            vector_intensity_mean_nuclei_in_cell[i] = mean_intensity
+        
+    return vector_intensity_nuclei_in_cell, vector_intensity_mean_nuclei_in_cell
+
+def get_intensity_around_cell(cells_id, img_segmentation_cells, channel, diam_edge = 3):
+    img_segmentation_cells_binary = img_segmentation_cells > 0
+    dilated_binary = binary_dilation(img_segmentation_cells_binary, structure=disk(diam_edge))
+    eroded_binary = binary_erosion(img_segmentation_cells_binary, structure=disk(diam_edge))
+    edge = np.logical_xor(dilated_binary, eroded_binary)
+    del dilated_binary, eroded_binary
+    img_segmentation_cells_labelled_edge = np.where(edge, img_segmentation_cells,0)
+    vector_intensity_nuclei_in_cell, vector_intensity_mean_nuclei_in_cell = get_intensity_per_cell(cells_id, img_segmentation_cells_labelled_edge, channel)
+    
+    return vector_intensity_nuclei_in_cell, vector_intensity_mean_nuclei_in_cell
 
 def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, img_segmentation_channel1, img_segmentation_channel2):
     
@@ -411,8 +428,6 @@ def save_csv(list_cell_expr1_expr2, csv_file_path):
         # Write each row of data
         for cell_expr1_expr2 in list_cell_expr1_expr2:
             csv_writer.writerow(cell_expr1_expr2)
-
-
 
 def main():
     
@@ -479,7 +494,6 @@ def get_overlapping_segmentation(segmentation_to_preserve, img_segmentation, min
 
     #Filtering of double segmented: regular nuclei vs all:
     _, _, matching_pairs_a_to_b_non_zero = matching_label_pairs(segmentation_to_preserve, img_segmentation, min_pixels=min_pixels)
-    #print(len(matching_pairs_a_to_b_non_zero))
     img_segmentation_filtered = np.zeros(segmentation_to_preserve.shape, dtype=np.uint16)
     for label_pair in matching_pairs_a_to_b_non_zero:
         img_0 = segmentation_to_preserve == label_pair[0]
@@ -500,7 +514,6 @@ def remove_overlapping_segmentation(segmentation_to_clean, img_segmentation, min
 
     #Filtering of double segmented: regular nuclei vs all:
     _, _, matching_pairs_a_to_b_non_zero = matching_label_pairs(segmentation_to_clean, img_segmentation, min_pixels=min_pixels)
-    #print(len(matching_pairs_a_to_b_non_zero))
     img_segmentation_filtered = np.copy(segmentation_to_clean)
     for label_pair in matching_pairs_a_to_b_non_zero:
         img_0 = segmentation_to_clean == label_pair[0]
@@ -510,7 +523,6 @@ def remove_overlapping_segmentation(segmentation_to_clean, img_segmentation, min
         img_union = np.logical_or(img_0,img_1)
         union_value = np.sum(img_union)
         IoU = intersec_value / union_value
-        #print(IoU)
         
         if IoU > percentage:
             img_segmentation_filtered[img_0] = 0
@@ -523,6 +535,17 @@ def get_areas(cell_props):
         list_areas.append(cell_prop.area)
             
     return list_areas
+    
+def get_labels(cell_props, bbox = None):
+    list_labels = []
+    for cell_prop in cell_props:
+        if bbox is None:
+            list_labels.append(cell_prop.label)
+        else:
+            xmin, ymin, xmax, ymax = bbox
+            if xmin <= cell_prop.xCentroid < xmax and ymin <= cell_prop.yCentroid < ymax:
+                list_labels.append(cell_prop.label)
+    return list_labels
     
 def get_number_of_nuclei_per_cell(matching_pairs_nuclei_cell):
     dict_cell_nuclei_count = {}
