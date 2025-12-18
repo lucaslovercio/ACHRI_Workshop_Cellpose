@@ -120,6 +120,35 @@ def get_img_from_idx_cells(img_segmentation, list_idx):
         
     return img_result
 
+def get_img_with_ids(image, xy_positions, ids, font_scale=0.5, color=(0, 255, 0), thickness=1, font=cv2.FONT_HERSHEY_SIMPLEX):
+    
+    assert len(xy_positions) == len(ids), "xy_positions and ids must have same length"
+
+    # Convert grayscale → BGR if needed
+    if image.ndim == 2:
+        img = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    elif image.ndim == 3 and image.shape[2] == 3:
+        img = image.copy()
+    else:
+        raise ValueError("Unsupported image format")
+
+    for xy, id_ in zip(xy_positions, ids):
+        text = str(id_)
+        x,y = xy
+        # OpenCV expects (x, y)
+        cv2.putText(
+            img,
+            text,
+            (int(x), int(y)),
+            font,
+            font_scale,
+            color,
+            thickness,
+            cv2.LINE_AA
+        )
+
+    return img
+
 def matching_label_pairs_perc(matrix1, matrix2, min_perc = 0.5):
     # Convert matrices to NumPy arrays
     array1 = np.array(matrix1)
@@ -365,6 +394,24 @@ def get_intensity_around_cell(cells_id, img_segmentation_cells, channel, diam_ed
     
     return vector_intensity_nuclei_in_cell, vector_intensity_mean_nuclei_in_cell
 
+def get_expr_from_labels(labels, img_segmentation,img_expression, flag_use_median = True):
+    """
+    Median is recommended due to the (speckle) noise of expression signals
+    """
+    
+    list_cell_expr = []
+    for label_seg in labels:
+        binary_image = np.where(img_segmentation == label_seg,1,0)
+        masked_expression1 = img_expression[binary_image > 0]
+        if flag_use_median:
+            mean_exp1 = np.median(masked_expression1)
+        else:
+            mean_exp1 = np.mean(masked_expression1)
+        #label, expr1, expr2, pred1, pred2
+        list_cell_expr.append(mean_exp1)
+
+    return list_cell_expr
+
 def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, img_segmentation_channel1, img_segmentation_channel2):
     
     regions = measure.regionprops(img_segmentation)
@@ -398,12 +445,11 @@ def filter_joint_cell_expr(list_cell_expr1_expr2): #Filtering if it is at least 
             
     return filtered_list_cell_expr1_expr2
 
-def plot_expressions(list_cell_expr1_expr2, title_plot, label_x = 'Channel 1', label_y = 'Channel 2'):
+def plot_expressions(list_expr1, list_expr2, title_plot, label_x = 'Channel 1', label_y = 'Channel 2', figsize = 8, flag_show = False):
     max_expr = 0;
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(figsize, figsize))
     
-    for cell_expr1_expr2 in list_cell_expr1_expr2:
-        label, mean_exp1, mean_exp2, pred1, pred2 = cell_expr1_expr2
+    for mean_exp1, mean_exp2 in zip(list_expr1, list_expr2):
         if max_expr< np.max([mean_exp1,mean_exp2]):
             max_expr = np.max([mean_exp1,mean_exp2])
             
@@ -415,7 +461,39 @@ def plot_expressions(list_cell_expr1_expr2, title_plot, label_x = 'Channel 1', l
     plt.ylim(0, max_expr + 0.01)
     plt.xlim(0, max_expr + 0.01)
     
-    #plt.show()
+    if flag_show:
+        plt.show()
+
+def plot_expressions_labelled(list_expr1, list_expr2, list_labels, title_plot, label_x = 'Channel 1', label_y = 'Channel 2', figsize = 8, size_dot = 60, flag_show = False):
+    max_expr = 0;
+    x = np.asarray(list_expr1)
+    y = np.asarray(list_expr2)
+    labels = np.asarray(list_labels)
+    max_expr = np.max([np.max(x),np.max(y)])
+    plt.figure(figsize=(figsize, figsize))
+    unique_labels = np.unique(list_labels)
+    cmap = plt.cm.get_cmap('Set1', len(unique_labels))
+
+    for i, lab in enumerate(unique_labels):
+        
+        mask = labels == lab
+        plt.scatter(
+            x[mask],
+            y[mask],
+            label=lab,
+            color=cmap(i),
+            s=size_dot
+        )
+            
+    plt.title(title_plot)
+    plt.xlabel(label_x)
+    plt.ylabel(label_y)
+    plt.legend()
+    plt.ylim(0, max_expr + 0.01)
+    plt.xlim(0, max_expr + 0.01)
+    
+    if flag_show:
+        plt.show()
 
 def save_csv(list_cell_expr1_expr2, csv_file_path):
     with open(csv_file_path, "w", newline="") as csvfile:
