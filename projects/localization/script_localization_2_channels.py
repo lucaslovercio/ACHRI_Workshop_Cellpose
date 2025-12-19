@@ -195,13 +195,7 @@ def main():
             plt.savefig(png_output_expressions, dpi=800)
             
             plt.close('all')
-    
-    
-    plot_expressions_labelled(list_all_nuclei_expression, list_all_cito_expression, list_all_label_image, 'expression', \
-                              label_x = 'expr in nuclei', label_y = 'expr in cito', figsize = 8, flag_show = False)
-    png_output_expressions = os.path.join(folder_images, 'expressions.png')
-    plt.savefig(png_output_expressions, dpi=800)
-    
+
     str_mean_median = 'median' if flag_use_median else 'mean'
     df = pd.DataFrame({
         'Image': list_all_filename_image,
@@ -219,8 +213,13 @@ def main():
     # save to csv
     csv_output_expressions = os.path.join(folder_images, 'expressions.csv')
     df.to_csv(csv_output_expressions, index=False)
+    
+    
+    plot_expressions_labelled(list_all_nuclei_expression, list_all_cito_expression, list_all_label_image, 'expression', \
+                              label_x = 'expr in nuclei', label_y = 'expr in cito', figsize = 8, flag_show = False)
+    png_output_expressions = os.path.join(folder_images, 'expressions.png')
+    plt.savefig(png_output_expressions, dpi=800)
+    
 
-    
-    
 if __name__ == "__main__":
     main()
