@@ -644,6 +644,12 @@ def get_number_of_cells_by_nuclei_count(dict_cell_nuclei_count, number_nuclei):
             n_cells = n_cells + 1
     return n_cells
 
+def generate_props_dict(list_cell_properties):
+    dict_props = {}
+    for prop in list_cell_properties:
+        cell_key = prop.label
+        dict_props[cell_key] = prop
+    return dict_props
 
 if __name__ == "__main__":
     main()
