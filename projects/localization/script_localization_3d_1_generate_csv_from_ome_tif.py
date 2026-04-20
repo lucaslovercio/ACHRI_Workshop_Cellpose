@@ -90,7 +90,6 @@ def get_volume_from_ome_channels(oir_file, flag_norm=True):
     for ch_idx, ch_file in enumerate(channel_files):
 
         img = AICSImage(ch_file)
-        # data = img.get_image_data("TCZYX")
         data = img.get_image_data("TCXYZ")
         dims = img.dims
 
@@ -104,19 +103,9 @@ def get_volume_from_ome_channels(oir_file, flag_norm=True):
             voxel_size_y = img.physical_pixel_sizes.Y
             voxel_size_z = img.physical_pixel_sizes.Z
 
-            #print(f"SizeT: {size_t}")
-            #print(f"SizeZ: {size_z}")
-            #print(f"SizeX: {size_x}")
-            #print(f"SizeY: {size_y}")
-            #print(f"VoxelSizeX: {voxel_size_x}")
-            #print(f"VoxelSizeY: {voxel_size_y}")
-            #print(f"VoxelSizeZ: {voxel_size_z}")
-
-        #channel_volume = np.zeros((size_y, size_x, size_z), dtype=data.dtype)
         channel_volume = np.zeros((size_x, size_y, size_z))
 
         for z in range(size_z):
-            #image = data[0, 0, z, :, :]  # T=0, C=0
             image = data[0, 0, :, :, z]  # T=0, C=0
             if flag_norm:
                 channel_volume[:, :, z] = functionPercNorm(image)
@@ -131,7 +120,7 @@ def main():
     fullpath_model_speckle = os.path.join(folder_models, model_name_speckle)
     fullpath_model_nuclei = os.path.join(folder_models, model_name_nuclei)
     if not (os.path.exists(fullpath_model_nuclei)) and not(os.path.exists(fullpath_model_speckle)):
-        print("Nuclei model does not exist.")
+        print("One or more segmentation models could not be found")
         sys.exit(1)
     
     
@@ -178,188 +167,224 @@ def main():
                     
                     for oir_file in files_tiff:
                         
-                        fullpath_oir = os.path.join(oir_folder, oir_file)
-                        
-                        label_image = next((x for x in list_classes if x in oir_file), None)
-                        
-                        speckle_marker = next((x for x in list_speckle_markers if x in oir_file), None)
-                        
-                        if (label_image is not None) and (speckle_marker is not None):
-                            if not(label_image in list_classes_effective):
-                                list_classes_effective.append(label_image)
-                            folder_output_sample = fullpath_oir + ending_file
-                            if flag_create_folders:
-                                if not os.path.exists(folder_output_sample):
-                                    os.makedirs(folder_output_sample)
+                        try:
+                            print("----------------------------------------")
+                            print("Analyzing:",oir_file)
+                            fullpath_oir = os.path.join(oir_folder, oir_file)
                             
-                            list_volumes, voxel_size_x, voxel_size_y, voxel_size_z = get_volume_from_ome_channels(fullpath_oir, flag_norm = True)
-                            list_images = list_volumes
-                            n_images = len(list_images)
-                            print('n volumes ', n_images)
+                            label_image = next((x for x in list_classes if x in oir_file), None)
                             
-                            channel_nuclei = list_images[nuclei_channel_number]
-                            channel_nuclei = channel_nuclei * 255.
+                            speckle_marker = next((x for x in list_speckle_markers if x in oir_file), None)
                             
-                            channel_speckle = list_images[speckle_channel_number]
-                            channel_speckle = channel_speckle * 255.
-                            
-                            channel_PRPF6 = list_images[signal_channel_number]
-                            channel_PRPF6 = channel_PRPF6 * 255.
-                            
-                            
-                            physical_x_y = 1.0
-                            ratio_z = voxel_size_z / voxel_size_y
-                            
-                            # Saving volumes
-                            print('Saving volumes')
-                            
-                            fullpath_tiff_channel_speckle = os.path.join(folder_output_sample,oir_file + ending_volume_speckle)
-                            if flag_create_folders:
-                                functionSaveTIFFMultipage(channel_speckle, fullpath_tiff_channel_speckle, 8)
-                            
-                            fullpath_tiff_channel_nuclei = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei)
-                            if flag_create_folders:
-                                functionSaveTIFFMultipage(channel_nuclei, fullpath_tiff_channel_nuclei, 8)
-                            
-                            fullpath_tiff_channel_PRPF6 = os.path.join(folder_output_sample,oir_file + ending_volume_PRPF6)
-                            if flag_create_folders:
-                                functionSaveTIFFMultipage(channel_PRPF6, fullpath_tiff_channel_PRPF6, 8)
-                            
-                            # Segment volumes
-                            print('Segmenting volumes')
-                            masks_nuclei = segment_slice_by_slice(channel_nuclei, fullpath_model_nuclei, diameter=None, flag_gpu = flag_gpu, \
-                                                                  flag_closing = flag_closing, flag_filter_by_size = flag_filter_by_size, size_min = size_min)
-                            total_nuclei = len(np.unique(masks_nuclei)) - 1
-                            fullpath_tiff_nuclei_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei_segmentation)
-                            fullpath_tiff_nuclei_segmentation_binary = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei_segmentation_binary)
-                            if flag_create_folders:
-                                functionSaveTIFFMultipage(masks_nuclei, fullpath_tiff_nuclei_segmentation, 8)
-                                functionSaveTIFFMultipage(np.uint8(masks_nuclei>0)*255, fullpath_tiff_nuclei_segmentation_binary, 8)
-                            
-                            
-                            print('Segmenting speckle')
-                            mask_speckle = segment_slice_by_slice(channel_speckle, fullpath_model_speckle, diameter=None, flag_gpu = flag_gpu, \
-                                                                  flag_closing = flag_closing , flag_filter_by_size = flag_filter_by_size, size_min = size_min)
-                            total_speckle = len(np.unique(mask_speckle)) - 1
-                            # Around speckles
-                            mask_speckle_around = expand_labels(mask_speckle, distance = distance_expansion)
-                            mask_speckle_around[mask_speckle>0] = 0 # Empty in the speckle area
-                            
-                            # total_mito = len(np.unique(mask_mito)) - 1
-                            fullpath_tiff_speckle_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_speckle_segmentation)
-                            fullpath_tiff_speckle_segmentation_binary = os.path.join(folder_output_sample,oir_file + ending_volume_speckle_segmentation_binary)
-                            if flag_create_folders:
-                                functionSaveTIFFMultipage(mask_speckle, fullpath_tiff_speckle_segmentation, 8)
-                                functionSaveTIFFMultipage(np.uint8(mask_speckle>0)*255, fullpath_tiff_speckle_segmentation_binary, 8)
-                            
-                            fullpath_tiff_around_speckle_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_around_speckle_segmentation)
-                            fullpath_tiff_around_speckle_segmentation_binary = os.path.join(folder_output_sample,oir_file + ending_volume_around_speckle_segmentation_binary)
-                            if flag_create_folders:
-                                functionSaveTIFFMultipage(mask_speckle_around, fullpath_tiff_around_speckle_segmentation, 8)
-                                functionSaveTIFFMultipage(np.uint8(mask_speckle_around>0)*255, fullpath_tiff_around_speckle_segmentation_binary, 8)
-                            
-                            # Only segmented speckles inside the segmented nuclei
-                            props_speckles = get_props_per_cell3D(mask_speckle)
-                            props_speckles_dict = generate_props_dict(props_speckles)
-                            _, _, matching_pairs_a_to_b_non_zero = matching_label_pairs(masks_nuclei, mask_speckle, min_pixels=min_pixels_matching)
-                            
-                            if len(matching_pairs_a_to_b_non_zero)>0:
-                                left, right = zip(*matching_pairs_a_to_b_non_zero)
-                                labels_nuclei_matched = list(left)
-                                labels_speckle_matched = list(right)
-                                list_speckle_expression = get_expr_from_labels(labels_speckle_matched, mask_speckle, channel_PRPF6, flag_use_median = flag_use_median)
-                                list_around_speckle_expression = get_expr_from_labels(labels_speckle_matched, mask_speckle_around, channel_PRPF6, flag_use_median = flag_use_median)
-                                
-                                list_size_speckle = []
-                                for label_speckle in labels_speckle_matched:
-                                    list_size_speckle.append((props_speckles_dict[label_speckle]).volume)
-                                # Expression outside the speckles
-                                masks_nuclei_not_speckle = masks_nuclei.copy()
-                                masks_nuclei_not_speckle[mask_speckle>0] = 0
-                                masks_nuclei_not_speckle[mask_speckle_around>0] = 0
-                                list_expression_outside = get_expr_from_labels(labels_nuclei_matched, masks_nuclei_not_speckle, channel_PRPF6, flag_use_median = flag_use_median)
-                                
-                                list_all_nuclei_id.extend(labels_nuclei_matched)
-                                list_all_speckle_id.extend(labels_speckle_matched)
-                                list_all_speckle_expression.extend(list_speckle_expression)
-                                list_all_speckle_voxels.extend(list_size_speckle)
-                                
-                                list_all_around_speckle_expression.extend(list_around_speckle_expression)
-                                list_all_outside_speckle_expression.extend(list_expression_outside)
-                                
-                                ratio_in_around = np.divide(np.array(list_around_speckle_expression),np.array(list_speckle_expression))
-                                ratio_in_outside = np.divide(np.array(list_expression_outside),np.array(list_speckle_expression))
-                                list_all_ratio_in_around_speckle_expression.extend(list(ratio_in_around))
-                                list_all_ratio_in_out_speckle_expression.extend(list(ratio_in_outside))
-                                
-                                list_all_label_image.extend([label_image] * len(list_speckle_expression))
-                                list_all_filename_image.extend([oir_file] * len(list_speckle_expression))
-                                list_all_speckle_marker.extend([speckle_marker] * len(list_speckle_expression))
-                                list_all_signal_channel_number.extend([signal_channel_number] * len(list_speckle_expression))
-                                list_all_speckle_channel_number.extend([speckle_channel_number] * len(list_speckle_expression))
-                                
-                                list_mean_speckle_expression.append(np.mean(np.array(list_speckle_expression)))
-                                list_mean_around_speckle_expression.append(np.mean(np.array(list_around_speckle_expression)))
-                                list_mean_outside_expression.append(np.mean(np.array(list_expression_outside)))
-                                list_label_image.append(label_image)
-                                
-                                # Creating script for Paraview
-                                print('Creating script for Paraview')
-                                
-                                colormap_channel_nuclei = "Cool to Warm"
-                                colormap_channel_speckle = "Viridis (matplotlib)"
-                                colormap_channel_SC35 = "Blue - Green - Orange"
-                                colormap_nuclei_segmentation = "X Ray"
-                                colormap_speckle_segmentation = "Rainbow Desaturated"
-                                colormap_around_speckle_segmentation = "Rainbow Desaturated"
-                                volume_list = [
-                                (fullpath_tiff_channel_nuclei, 'channel_nuclei', colormap_channel_nuclei),
-                                (fullpath_tiff_channel_speckle, 'channel_speckle', colormap_channel_speckle),
-                                (fullpath_tiff_channel_PRPF6, 'channel_'+signal_of_interest, colormap_channel_SC35),
-                                (fullpath_tiff_nuclei_segmentation, 'segmentation_nuclei', colormap_nuclei_segmentation),
-                                (fullpath_tiff_speckle_segmentation, 'segmentation_speckle', colormap_speckle_segmentation),
-                                (fullpath_tiff_around_speckle_segmentation, 'segmentation_speckle', colormap_around_speckle_segmentation)
-                                ]
-                                
-                                output_script_path = os.path.join(folder_output_sample, oir_file + "_render_volumes.py")
-                                
-                                load_calls = ""
-                                for tiff_path, registration_name, colormap in volume_list:
-                                    tiff_escaped = tiff_path.replace("\\", "\\\\")  # escape backslashes for Windows
-                                    load_calls += f"load_volume('{tiff_escaped}', '{registration_name}', '{colormap}', {physical_x_y}, {physical_x_y}, {ratio_z})\n"
-                                
-                                # Combine all parts
-                                final_script = TEMPLATE_HEAD + load_calls
-                                
-                                # Write the generated script to a file
+                            if (label_image is not None) and (speckle_marker is not None):
+                                if not(label_image in list_classes_effective):
+                                    list_classes_effective.append(label_image)
+                                folder_output_sample = fullpath_oir + ending_file
                                 if flag_create_folders:
-                                    with open(output_script_path, "w") as f:
-                                        f.write(final_script)
-                                    
-                                if flag_create_folders:    
-                                    txt_output_sample = os.path.join(folder_output_sample, oir_file + '_summary.txt')
-                                    f = open(txt_output_sample, "w")
-                                    
-                                    f.write(oir_file + '\n')
-                                    f.write('------------------------------------------------------- \n')        
-                                    f.write('N channels: ' + str(n_images) + '\n')
-                                    f.write('Channels (starting in 0)\n')
-                                    f.write('Channel speckles: ' + str(speckle_channel_number) + '\n')
-                                    f.write('Channel signal: ' + str(signal_channel_number) + '\n')
-                                    
-                                    f.write('------------------------------------------------------- \n')        
-                                    f.write('Total speckles: ' + str(total_speckle) + '\n')
-                                    f.write('Total valid speckles: ' + str( len(labels_speckle_matched)) + '\n')
-                                    f.write('Total nuclei: ' + str( total_nuclei) + '\n')
-                                    f.write('------------------------------------------------------- \n')        
-                                    f.write('physical_x_y: ' + str( physical_x_y) + '\n')
-                                    f.write('ratio_z: ' + str( ratio_z) + '\n')
-                                    
-                                    f.close()
-                                    del f
+                                    if not os.path.exists(folder_output_sample):
+                                        os.makedirs(folder_output_sample)
                                 
-                        else:
-                            print(oir_file," - NO nuclei or speckle found")
+                                list_volumes, voxel_size_x, voxel_size_y, voxel_size_z = get_volume_from_ome_channels(fullpath_oir, flag_norm = True)
+                                list_images = list_volumes
+                                n_images = len(list_images)
+                                print('n volumes ', n_images)
+                                
+                                channel_nuclei = list_images[nuclei_channel_number]
+                                channel_nuclei = channel_nuclei * 255.
+                                
+                                channel_speckle = list_images[speckle_channel_number]
+                                channel_speckle = channel_speckle * 255.
+                                
+                                channel_PRPF6 = list_images[signal_channel_number]
+                                channel_PRPF6 = channel_PRPF6 * 255.
+                                
+                                
+                                physical_x_y = 1.0
+                                ratio_z = voxel_size_z / voxel_size_y
+                                
+                                # Saving volumes
+                                print('Saving volumes')
+                                
+                                fullpath_tiff_channel_speckle = os.path.join(folder_output_sample,oir_file + ending_volume_speckle)
+                                if flag_create_folders:
+                                    functionSaveTIFFMultipage(channel_speckle, fullpath_tiff_channel_speckle, 8)
+                                
+                                fullpath_tiff_channel_nuclei = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei)
+                                if flag_create_folders:
+                                    functionSaveTIFFMultipage(channel_nuclei, fullpath_tiff_channel_nuclei, 8)
+                                
+                                fullpath_tiff_channel_PRPF6 = os.path.join(folder_output_sample,oir_file + ending_volume_PRPF6)
+                                if flag_create_folders:
+                                    functionSaveTIFFMultipage(channel_PRPF6, fullpath_tiff_channel_PRPF6, 8)
+                                
+                                # Segment volumes
+                                print('Segmenting volumes')
+                                masks_nuclei = segment_slice_by_slice(channel_nuclei, fullpath_model_nuclei, diameter=None, flag_gpu = flag_gpu, \
+                                                                      flag_closing = flag_closing, flag_filter_by_size = flag_filter_by_size, size_min = size_min)
+                                total_nuclei = len(np.unique(masks_nuclei)) - 1
+                                fullpath_tiff_nuclei_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei_segmentation)
+                                fullpath_tiff_nuclei_segmentation_binary = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei_segmentation_binary)
+                                if flag_create_folders:
+                                    functionSaveTIFFMultipage(masks_nuclei, fullpath_tiff_nuclei_segmentation, 8)
+                                    functionSaveTIFFMultipage(np.uint8(masks_nuclei>0)*255, fullpath_tiff_nuclei_segmentation_binary, 8)
+                                
+                                
+                                print('Segmenting speckle')
+                                mask_speckle = segment_slice_by_slice(channel_speckle, fullpath_model_speckle, diameter=None, flag_gpu = flag_gpu, \
+                                                                      flag_closing = flag_closing , flag_filter_by_size = flag_filter_by_size, size_min = size_min)
+                                total_speckle = len(np.unique(mask_speckle)) - 1
+                                # Around speckles
+                                mask_speckle_around = expand_labels(mask_speckle, distance = distance_expansion)
+                                mask_speckle_around[mask_speckle>0] = 0 # Empty in the speckle area
+                                
+                                # total_mito = len(np.unique(mask_mito)) - 1
+                                fullpath_tiff_speckle_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_speckle_segmentation)
+                                fullpath_tiff_speckle_segmentation_binary = os.path.join(folder_output_sample,oir_file + ending_volume_speckle_segmentation_binary)
+                                if flag_create_folders:
+                                    functionSaveTIFFMultipage(mask_speckle, fullpath_tiff_speckle_segmentation, 8)
+                                    functionSaveTIFFMultipage(np.uint8(mask_speckle>0)*255, fullpath_tiff_speckle_segmentation_binary, 8)
+                                
+                                fullpath_tiff_around_speckle_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_around_speckle_segmentation)
+                                fullpath_tiff_around_speckle_segmentation_binary = os.path.join(folder_output_sample,oir_file + ending_volume_around_speckle_segmentation_binary)
+                                if flag_create_folders:
+                                    functionSaveTIFFMultipage(mask_speckle_around, fullpath_tiff_around_speckle_segmentation, 8)
+                                    functionSaveTIFFMultipage(np.uint8(mask_speckle_around>0)*255, fullpath_tiff_around_speckle_segmentation_binary, 8)
+                                
+                                print('Matching nuclei and speckles')
+                                # Only segmented speckles inside the segmented nuclei
+                                props_speckles = get_props_per_cell3D(mask_speckle)
+                                props_speckles_dict = generate_props_dict(props_speckles)
+                                _, _, matching_pairs_a_to_b_non_zero = matching_label_pairs(masks_nuclei, mask_speckle, min_pixels=min_pixels_matching)
+                                
+                                if len(matching_pairs_a_to_b_non_zero)>0:
+                                    print('Analyzing signals in speckles')
+                                    left, right = zip(*matching_pairs_a_to_b_non_zero)
+                                    labels_nuclei_matched = list(left)
+                                    labels_speckle_matched = list(right)
+                                    list_speckle_expression = get_expr_from_labels(labels_speckle_matched, mask_speckle, channel_PRPF6, flag_use_median = flag_use_median)
+                                    list_around_speckle_expression = get_expr_from_labels(labels_speckle_matched, mask_speckle_around, channel_PRPF6, flag_use_median = flag_use_median)
+                                    
+                                    list_size_speckle = []
+                                    for label_speckle in labels_speckle_matched:
+                                        list_size_speckle.append((props_speckles_dict[label_speckle]).volume)
+                                    # Expression outside the speckles
+                                    masks_nuclei_not_speckle = masks_nuclei.copy()
+                                    masks_nuclei_not_speckle[mask_speckle>0] = 0
+                                    masks_nuclei_not_speckle[mask_speckle_around>0] = 0
+                                    list_expression_outside = get_expr_from_labels(labels_nuclei_matched, masks_nuclei_not_speckle, channel_PRPF6, flag_use_median = flag_use_median)
+                                    
+                                    list_all_nuclei_id.extend(labels_nuclei_matched)
+                                    list_all_speckle_id.extend(labels_speckle_matched)
+                                    list_all_speckle_expression.extend(list_speckle_expression)
+                                    list_all_speckle_voxels.extend(list_size_speckle)
+                                    
+                                    list_all_around_speckle_expression.extend(list_around_speckle_expression)
+                                    list_all_outside_speckle_expression.extend(list_expression_outside)
+                                    
+                                    ratio_in_around = np.divide(np.array(list_around_speckle_expression),np.array(list_speckle_expression))
+                                    ratio_in_outside = np.divide(np.array(list_expression_outside),np.array(list_speckle_expression))
+                                    
+                                    # Sample dataframe
+                                    print('Generating CSV of sample')
+                                    # str_mean_median = 'median' if flag_use_median else 'mean'
+                                    df_sample = pd.DataFrame({
+                                        'Image': [oir_file] * len(list_speckle_expression),
+                                        'Treatment': [label_image] * len(list_speckle_expression),
+                                        'Speckle_marker': [speckle_marker] * len(list_speckle_expression),
+                                        'Speckle_channel': [speckle_channel_number] * len(list_speckle_expression),
+                                        signal_of_interest + '_channel': [signal_channel_number] * len(list_speckle_expression),
+                                        'Nuclei_id': labels_nuclei_matched,
+                                        'Speckle_id': labels_speckle_matched,
+                                        'Speckle_size': list_size_speckle,
+                                        'Expression_in_speckle': list_speckle_expression,
+                                        'Expression_around_speckle': list_around_speckle_expression,
+                                        'Expression_outside_speckle': list_expression_outside,
+                                        'Ratio_in_around': list(ratio_in_around),
+                                        'Ratio_in_out': list(ratio_in_outside)
+                                    })
+                                    
+    
+                                    csv_output_expressions_sample = os.path.join(folder_output_sample,  oir_file + '-SPECKLE-LEVEL-expressions'+ ending_file +'.csv')
+                                    df_sample.to_csv(csv_output_expressions_sample, index=False)
+                                    del df_sample
+                                    # Building the final dataframe
+                                    
+                                    list_all_ratio_in_around_speckle_expression.extend(list(ratio_in_around))
+                                    list_all_ratio_in_out_speckle_expression.extend(list(ratio_in_outside))
+                                    
+                                    list_all_label_image.extend([label_image] * len(list_speckle_expression))
+                                    list_all_filename_image.extend([oir_file] * len(list_speckle_expression))
+                                    list_all_speckle_marker.extend([speckle_marker] * len(list_speckle_expression))
+                                    list_all_signal_channel_number.extend([signal_channel_number] * len(list_speckle_expression))
+                                    list_all_speckle_channel_number.extend([speckle_channel_number] * len(list_speckle_expression))
+                                    
+                                    list_mean_speckle_expression.append(np.mean(np.array(list_speckle_expression)))
+                                    list_mean_around_speckle_expression.append(np.mean(np.array(list_around_speckle_expression)))
+                                    list_mean_outside_expression.append(np.mean(np.array(list_expression_outside)))
+                                    list_label_image.append(label_image)
+                                    
+                                    # Creating script for Paraview
+                                    print('Creating script for Paraview')
+                                    
+                                    colormap_channel_nuclei = "Cool to Warm"
+                                    colormap_channel_speckle = "Viridis (matplotlib)"
+                                    colormap_channel_SC35 = "Blue - Green - Orange"
+                                    colormap_nuclei_segmentation = "X Ray"
+                                    colormap_speckle_segmentation = "Rainbow Desaturated"
+                                    colormap_around_speckle_segmentation = "Rainbow Desaturated"
+                                    volume_list = [
+                                    (fullpath_tiff_channel_nuclei, 'channel_nuclei', colormap_channel_nuclei),
+                                    (fullpath_tiff_channel_speckle, 'channel_speckle', colormap_channel_speckle),
+                                    (fullpath_tiff_channel_PRPF6, 'channel_'+signal_of_interest, colormap_channel_SC35),
+                                    (fullpath_tiff_nuclei_segmentation, 'segmentation_nuclei', colormap_nuclei_segmentation),
+                                    (fullpath_tiff_speckle_segmentation, 'segmentation_speckle', colormap_speckle_segmentation),
+                                    (fullpath_tiff_around_speckle_segmentation, 'segmentation_speckle', colormap_around_speckle_segmentation)
+                                    ]
+                                    
+                                    output_script_path = os.path.join(folder_output_sample, oir_file + "_render_volumes.py")
+                                    
+                                    load_calls = ""
+                                    for tiff_path, registration_name, colormap in volume_list:
+                                        tiff_escaped = tiff_path.replace("\\", "\\\\")  # escape backslashes for Windows
+                                        load_calls += f"load_volume('{tiff_escaped}', '{registration_name}', '{colormap}', {physical_x_y}, {physical_x_y}, {ratio_z})\n"
+                                    
+                                    # Combine all parts
+                                    final_script = TEMPLATE_HEAD + load_calls
+                                    
+                                    # Write the generated script to a file
+                                    if flag_create_folders:
+                                        with open(output_script_path, "w") as f:
+                                            f.write(final_script)
+                                        
+                                    if flag_create_folders:    
+                                        txt_output_sample = os.path.join(folder_output_sample, oir_file + '_summary.txt')
+                                        f = open(txt_output_sample, "w")
+                                        
+                                        f.write(oir_file + '\n')
+                                        f.write('------------------------------------------------------- \n')        
+                                        f.write('N channels: ' + str(n_images) + '\n')
+                                        f.write('Channels (starting in 0)\n')
+                                        f.write('Channel speckles: ' + str(speckle_channel_number) + '\n')
+                                        f.write('Channel signal: ' + str(signal_channel_number) + '\n')
+                                        
+                                        f.write('------------------------------------------------------- \n')        
+                                        f.write('Total speckles: ' + str(total_speckle) + '\n')
+                                        f.write('Total valid speckles: ' + str( len(labels_speckle_matched)) + '\n')
+                                        f.write('Total nuclei: ' + str( total_nuclei) + '\n')
+                                        f.write('------------------------------------------------------- \n')        
+                                        f.write('physical_x_y: ' + str( physical_x_y) + '\n')
+                                        f.write('ratio_z: ' + str( ratio_z) + '\n')
+                                        
+                                        f.close()
+                                        del f
+                                txt_output = txt_output + oir_file + " - Analyzed" + '\n'
+                            else:
+                                txt_output = txt_output + oir_file + " - NO nuclei or speckle found" + '\n'
+                                print(oir_file," - NO nuclei or speckle found")
+                        except Exception as e:
+                            print(f"Error: {e}") 
+                            txt_output = txt_output + 'FAILED to analyze: ' + oir_file + '\n'
+                            print('FAILED to analyze: ' + oir_file)
                     
                     # str_mean_median = 'median' if flag_use_median else 'mean'
                     df = pd.DataFrame({
