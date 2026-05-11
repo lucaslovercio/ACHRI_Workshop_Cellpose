@@ -24,6 +24,10 @@ Given training and validation data, and candidate diameters and pretrained model
 
 ## Materials
 
+### Environments folder
+
+In this folder you can find the files to create environments in Anaconda and Venv to run the scripts in this repository.
+
 ### Trained architectures
 
 https://uofc-my.sharepoint.com/:f:/r/personal/lucasdaniel_lovercio_ucalgary_ca/Documents/Cellpose_pretrained_models
