@@ -3,11 +3,8 @@
 
 ############################ PARAMETERS ###################################################
 
-path_image    = '/mnt/DATA/ACHRI/2024-10 Wilson Lab/2026-04 Publication/images_test_deliver6/09_01.vsi - 40x.jpg'
-folder_output = '/mnt/DATA/ACHRI/2024-10 Wilson Lab/2026-04 Publication/images_test_deliver6/output_tile_jpeg_20260527a'
-
-# path_image    = '/mnt/DATA/ACHRI/2024-10 Wilson Lab/2026-04 Publication/images_test_deliver4/32_01.vsi - 40x - full res.jpg'
-# folder_output = '/mnt/DATA/ACHRI/2024-10 Wilson Lab/2026-04 Publication/images_test_deliver4/output_tile_jpeg_20260525a'
+path_image    = ''
+folder_output = ''
 
 tile_size          = 2400
 downsample_factor  = 4
@@ -25,11 +22,11 @@ tuple_green =(0, 255, 0)
 
 flag_gpu = True
 
-folder_models                = '/mnt/DATA/ACHRI/2024-10 Wilson Lab/2026-04 Publication/Models/20260513Models/'
+folder_models                = ''
 filename_model_cells         = 'cell_reinhard_original_and_jpegs_model_nuclei_diam_50_ji_0.7175.002349'
 filename_model_nucleus_lobes = 'nuclei_reinhard_original_and_jpeg_model_nuclei_diam_30_ji_0.7266.571736'
-filename_normalizer_reinhard = 'normalizer_target_image_17- 13_01.vsi_18600_18600.png_Reinhard.pkl'
-filename_rf_celltype         = '20260507_SVMFeatSel_Reinhard_nTrain_76_nVal_20_nTrees_10_multSome_4_minPxMatch_200_percFeat_0.4_confidence_threshold0.55_RUS_0.35.pkl'
+filename_normalizer_reinhard = 'normalizer_Reinhard.pkl'
+filename_rf_celltype         = '20260507_RF_Cell_classification.pkl'
 
 
 #######################################################################################################
@@ -60,7 +57,7 @@ path_model_nucleus_lobes  = os.path.join(folder_models, filename_model_nucleus_l
 path_rf_celltypes         = os.path.join(folder_models, filename_rf_celltype)
 path_transformer_reinhard = os.path.join(folder_models, filename_normalizer_reinhard)
 
-from functions_balf import process_image, label_to_name, CELL_TYPES
+from functions_balf import process_image, label_to_name
 from aux_functions.draw_roi_over_image import draw_roi_over_rgb
 
 # ── GUI constants ─────────────────────────────────────────────────────────────
