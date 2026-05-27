@@ -2,9 +2,9 @@
 ###################################   PARAMETERS   #########################
 
 # Folder with the tiff images
-folder_images = ''
+folder_images = '/mnt/DATA/ACHRI/2025-07 Guang Yang Kaylan/2025-07 WT and Mut'
 
-folder_models = ''
+folder_models = '/mnt/DATA/ACHRI/2025-07 Guang Yang Kaylan/2025-08 Training sets/Best_models_20251024'
 # Just the name of the file with the model
 model_nuclear       = '20251024_all_nuclei_20251022_model_cyto_diam_24_imgNormCellpose_imerodeFalse_ji_0.8379.574687'
 model_nuclear_alive = '20251024_NonApoptotic_model_cyto2_diam_20_imgNormCellpose_imerodeFalse_ji_0.8225.392559'
@@ -127,7 +127,7 @@ def main():
     n_models = len(list_models)
     bins = np.linspace(0, 1, n_bins+1) # For intensity histograms
     
-    
+    accum_df = []  # list is better than repeated concat in a loop
     file_images = []
     for file in os.listdir(folder_images):
         if file.endswith(".tiff") or file.endswith(".tif"):
@@ -299,6 +299,12 @@ def main():
             csv_output = os.path.join(folder_output, file_image + '_' + seg_name +'.csv')
             df_seg_intensity.to_csv(csv_output, index=False)
             
+            # Add filename and segmentation done, and append to the global dataframe
+            df_seg_intensity.insert(0, "seg_name", seg_name)
+            df_seg_intensity.insert(0, "filename", file_image)
+
+            accum_df.append(df_seg_intensity)
+            
             if len(intensities) > 1: #We can plot an scatter plot
                 
                 feature1_name = list_names[intensities[0]-1]
@@ -322,6 +328,13 @@ def main():
                 plot_scatter_vs(df_seg_intensity, feature1_name, feature2_name, folder_output, file_image, seg_name)
                 
                 plot_scatter_vs(df_seg_intensity, feature1_name + ending_edge, feature2_name + ending_edge, folder_output, file_image, seg_name)
+                
+    # concatenate once at the end
+    final_df = pd.concat(accum_df, ignore_index=True)
+    
+    # save single CSV
+    csv_output = os.path.join(folder_images, 'segmentations_and_expressions.csv')
+    final_df.to_csv(csv_output, index=False)
     
 if __name__ == "__main__":
     main()    

@@ -27,7 +27,26 @@ def draw_mask_over_image(img_original_normalized, mask, color_mask = [0, 255, 0]
     color_image = cv2.cvtColor(image_uint8, cv2.COLOR_GRAY2BGR)
     color_image[mask == 1] =  color_mask # BGR color for green
     return color_image
+
+def draw_roi_over_rgb(color_image, img_segmentation, color_rectangle = (255, 0, 0), border_rectangle = 2):
     
+    # Find unique object labels, excluding the background label 0
+    object_labels = np.unique(img_segmentation)
+    object_labels = object_labels[object_labels != 0]
+    
+    for label in object_labels:
+        # Create a mask for the current object
+        mask = img_segmentation == label
+        
+        # Find the bounding box coordinates for the current object
+        y_indices, x_indices = np.where(mask)
+        x_min, x_max = x_indices.min(), x_indices.max()
+        y_min, y_max = y_indices.min(), y_indices.max()
+        
+        # Draw a red rectangle (BGR color space) around the object
+        cv2.rectangle(color_image, (x_min, y_min), (x_max, y_max), color_rectangle, border_rectangle)
+    
+    return color_image      
 
 def draw_roi_over_image(img_original_normalized, img_segmentation):
     image_uint8 = (img_original_normalized * 255).astype(np.uint8)
