@@ -5,29 +5,33 @@
 
 path_image    = ''
 folder_output = ''
+folder_models = ''
+
+cells_per_quadrant = 20
+
+flag_gpu = False
+
+###########################################################################################
 
 tile_size          = 2400
 downsample_factor  = 4
 jpeg_quality       = 90
-cells_per_quadrant = 20
+
+min_pixels_matching = 200
+confidence_threshold = 0.55
 
 color_quadrant_lines = (255, 0,   0)
 color_tile_analyzed  = (0,   200, 0)
 line_thickness       = 5
-min_pixels_matching = 200
-confidence_threshold = 0.55
+
 border_rectangle = 5
 tuple_orange = (255, 165, 0)
 tuple_green =(0, 255, 0)
 
-flag_gpu = True
-
-folder_models                = ''
 filename_model_cells         = 'cell_reinhard_original_and_jpegs_model_nuclei_diam_50_ji_0.7175.002349'
 filename_model_nucleus_lobes = 'nuclei_reinhard_original_and_jpeg_model_nuclei_diam_30_ji_0.7266.571736'
 filename_normalizer_reinhard = 'normalizer_Reinhard.pkl'
 filename_rf_celltype         = '20260507_RF_Cell_classification.pkl'
-
 
 #######################################################################################################
 
@@ -49,8 +53,12 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Tuple, Optional
 
 import cv2
+import matplotlib
+matplotlib.use('Agg')   # file-only backend — prevents macOS Cocoa conflict with tkinter
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk
+
+os.environ.setdefault('TK_SILENCE_DEPRECATION', '1')
 
 path_model_cells          = os.path.join(folder_models, filename_model_cells)
 path_model_nucleus_lobes  = os.path.join(folder_models, filename_model_nucleus_lobes)
