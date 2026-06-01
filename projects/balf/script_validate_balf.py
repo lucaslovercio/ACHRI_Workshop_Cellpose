@@ -3,7 +3,7 @@
 
 ############################ PARAMETERS ###################################################
 
-folder_output = '/mnt/DATA/ACHRI/2024-10 Wilson Lab/2026-04 Publication/images_test_deliver6/output_tile_jpeg_20260527a'
+folder_output = ''
 
 flag_rebuild_csvs = False
 
