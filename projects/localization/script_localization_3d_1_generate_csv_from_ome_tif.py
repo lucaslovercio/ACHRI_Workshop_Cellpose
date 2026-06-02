@@ -134,10 +134,10 @@ def main():
         for flag_use_median in list_flag_use_median:
             for size_min in list_threshold:
                 for distance_expansion in list_distance_expansion:
-                
-                    ending_file = '_matching_'+str(min_pixels_matching) + '_closing_' + str(flag_closing) + \
+                    ending_file = '_Analysis'
+                    txt_output = txt_output + 'PARAMETERS\n_matching_'+str(min_pixels_matching) + '_closing_' + str(flag_closing) + \
                         '_expansion_' + str(distance_expansion) + '_median_' + str(flag_use_median) + \
-                            '_filterBySize_' + str(flag_filter_by_size) + '_' + str(size_min)
+                            '_filterBySize_' + str(flag_filter_by_size) + '_' + str(size_min) + '\n'
                     
                     list_all_filename_image = []
                     # list_all_nuclei_expression = []
