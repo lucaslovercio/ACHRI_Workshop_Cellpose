@@ -16,6 +16,8 @@ sys.path.append(root_path)
 from quantify_segmentation import get_expr_from_labels, matching_label_pairs, plot_expressions_labelled, generate_props_dict
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
