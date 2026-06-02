@@ -2,9 +2,9 @@
 ###################################   PARAMETERS   #########################
 
 # Folder with the tiff images
-folder_images = '/mnt/DATA/ACHRI/2025-07 Guang Yang Kaylan/2025-07 WT and Mut'
+folder_images = ''
 
-folder_models = '/mnt/DATA/ACHRI/2025-07 Guang Yang Kaylan/2025-08 Training sets/Best_models_20251024'
+folder_models = ''
 # Just the name of the file with the model
 model_nuclear       = '20251024_all_nuclei_20251022_model_cyto_diam_24_imgNormCellpose_imerodeFalse_ji_0.8379.574687'
 model_nuclear_alive = '20251024_NonApoptotic_model_cyto2_diam_20_imgNormCellpose_imerodeFalse_ji_0.8225.392559'
@@ -55,6 +55,8 @@ from quantify_segmentation import get_props_per_cell, get_labels
 from aux_functions.draw_roi_over_image import draw_roi_over_image, overlap_mask_over_image_rgb
 import cv2
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr, spearmanr
 from scipy.ndimage import gaussian_filter
