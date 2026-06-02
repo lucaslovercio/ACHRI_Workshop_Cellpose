@@ -84,6 +84,8 @@ mpl.use('Qt5Agg') # For windows
 import numpy as np
 from cellpose import models
 from cellpose.io import imread
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from aux_functions.functionPercNorm import functionPercNorm, get_one_channel
 from skimage.segmentation import expand_labels
