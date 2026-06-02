@@ -7,7 +7,7 @@ path_image    = ''
 folder_output = ''
 folder_models = ''
 
-cells_per_quadrant = 20
+cells_per_quadrant = 200
 
 flag_gpu = False
 
@@ -384,12 +384,13 @@ class ReviewGUI:
         for lbl in [ALL_LABEL] + self.all_label_strs:
             display = 'All Cells' if lbl == ALL_LABEL else label_to_name(lbl)
             btn = tk.Button(cls_frame, text=display, anchor='w',
-                            bg='#3c3f41', fg='#cccccc', relief=tk.FLAT,
-                            font=('Helvetica', 9), activebackground='#4a90d9',
+                            bg='#3c3f41', fg='white', relief=tk.GROOVE,
+                            font=('Helvetica', 9),
+                            activebackground='#1a6ec7', activeforeground='white',
                             command=lambda l=lbl: self._select_class(l))
             btn.pack(fill=tk.X, pady=1)
             self._cls_btns[lbl] = btn
-        self._cls_btns[ALL_LABEL].config(bg='#4a90d9')
+        self._cls_btns[ALL_LABEL].config(bg='#1a6ec7', font=('Helvetica', 9, 'bold'), relief=tk.RAISED)
 
         self._section(sidebar, 'Counts (visible class)')
         cf = tk.Frame(sidebar, bg='#252526')
@@ -411,7 +412,7 @@ class ReviewGUI:
             row = tk.Frame(lf, bg='#252526')
             row.pack(fill=tk.X, pady=1)
             tk.Label(row, bg=color_hex, width=3).pack(side=tk.LEFT, padx=(0, 6))
-            tk.Label(row, text=text, bg='#252526', fg='#aaaaaa',
+            tk.Label(row, text=text, bg='#252526', fg='#cccccc',
                      font=('Helvetica', 8)).pack(side=tk.LEFT)
 
         self._section(sidebar, 'Review Time')
@@ -445,7 +446,7 @@ class ReviewGUI:
         tk.Label(right,
                  text='Left-click box: remove/restore   |   Right-click box: force remove'
                       '   |   Left-click empty: add cell',
-                 bg='#1e1e1e', fg='#555555', font=('Helvetica', 8)).pack(side=tk.TOP)
+                 bg='#1e1e1e', fg='#888888', font=('Helvetica', 8)).pack(side=tk.TOP)
 
         self.canvas = tk.Canvas(right, bg='#111111', cursor='crosshair', highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -456,20 +457,21 @@ class ReviewGUI:
         nav = tk.Frame(right, bg='#252526')
         nav.pack(side=tk.BOTTOM, fill=tk.X)
         for text, cmd in [('◀ Prev', self._prev_tile), ('Next ▶', self._next_tile)]:
-            tk.Button(nav, text=text, bg='#3c3f41', fg='#cccccc', relief=tk.FLAT,
+            tk.Button(nav, text=text, bg='#3c3f41', fg='white', relief=tk.GROOVE,
                       font=('Helvetica', 9), cursor='hand2',
+                      activebackground='#555555', activeforeground='white',
                       command=cmd).pack(side=tk.LEFT, padx=4, pady=4)
-        self._lbl_nav = tk.Label(nav, text='', bg='#252526', fg='#888888', font=('Helvetica', 8))
+        self._lbl_nav = tk.Label(nav, text='', bg='#252526', fg='#aaaaaa', font=('Helvetica', 8))
         self._lbl_nav.pack(side=tk.LEFT, padx=8)
 
     def _section(self, parent, title):
-        tk.Label(parent, text=title.upper(), bg='#252526', fg='#555555',
+        tk.Label(parent, text=title.upper(), bg='#252526', fg='#999999',
                  font=('Helvetica', 7, 'bold')).pack(anchor='w', padx=8, pady=(8, 2))
 
     def _count_row(self, parent, label, color):
         f = tk.Frame(parent, bg='#252526')
         f.pack(fill=tk.X, pady=1)
-        tk.Label(f, text=label, bg='#252526', fg='#888888',
+        tk.Label(f, text=label, bg='#252526', fg='#bbbbbb',
                  font=('Helvetica', 9), width=10, anchor='w').pack(side=tk.LEFT)
         lbl = tk.Label(f, text='0', bg='#252526', fg=color,
                        font=('Helvetica', 10, 'bold'), anchor='e')
@@ -511,7 +513,12 @@ class ReviewGUI:
     def _select_class(self, label):
         self.current_label = label
         for lbl, btn in self._cls_btns.items():
-            btn.config(bg='#4a90d9' if lbl == label else '#3c3f41')
+            if lbl == label:
+                btn.config(bg='#1a6ec7', fg='white',
+                           font=('Helvetica', 9, 'bold'), relief=tk.RAISED)
+            else:
+                btn.config(bg='#3c3f41', fg='white',
+                           font=('Helvetica', 9), relief=tk.GROOVE)
         self._render()
         self._update_counts()
 
@@ -906,7 +913,6 @@ def main():
                     process_image(path_tile_png,
                                   path_model_cells, path_model_nucleus_lobes,
                                   path_rf_celltypes, path_transformer_reinhard,
-                                  min_pixels_matching = min_pixels_matching,
                                   flag_gpu=flag_gpu)
                 print(f'  Cells found: {n_cells}')
 
@@ -976,3 +982,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
