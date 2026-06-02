@@ -31,6 +31,8 @@ import os
 import cv2
 import numpy as np
 from cellpose import models
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.append(root_path)
@@ -124,7 +126,14 @@ def show_images(img_channel1, img_channel2, title_plot):
 
     #plt.show()
 
-
+def extract_expr1_expr2(list_cell_expr1_expr2):
+    list_expr1 = []
+    list_expr2 = []
+    for cell_expr1_expr2 in list_cell_expr1_expr2:
+        _, mean_exp1, mean_exp2, _, _ = cell_expr1_expr2
+        list_expr1.append(mean_exp1)
+        list_expr2.append(mean_exp2)
+    return list_expr1, list_expr2
     
 def main():
     images = read_multipage_tiff_as_list(tiff_path)
@@ -182,9 +191,10 @@ def main():
     
     
     list_cell_expr1_expr2 = get_joint_expr_per_cell(img_segmentation_nuclei, img_channel2_original, img_channel3_original, img_segmentation_channel2, img_segmentation_channel3)
+    list_expr1, list_expr2 = extract_expr1_expr2(list_cell_expr1_expr2)
     save_csv(list_cell_expr1_expr2, tiff_path + '_orig_values.csv')
     
-    plot_expressions(list_cell_expr1_expr2, title_plot = 'Original values')
+    plot_expressions(list_expr1, list_expr2, title_plot = 'Original values')
     plt.savefig(tiff_path + '_plot_orig_values.png', dpi=400)
     
     img_channel2_norm = normalize_background(img_channel2_original, img_segmentation_nuclei)
@@ -196,9 +206,10 @@ def main():
     list_cell_expr1_expr2 = get_joint_expr_per_cell(img_segmentation_nuclei,\
                                                     img_channel2_norm, img_channel3_norm,\
                                                     img_segmentation_channel2, img_segmentation_channel3)
+    list_expr1, list_expr2 = extract_expr1_expr2(list_cell_expr1_expr2)
     save_csv(list_cell_expr1_expr2, tiff_path + '_hist_norm_values.csv')
     
-    plot_expressions(list_cell_expr1_expr2, title_plot = 'Histogram normalization')
+    plot_expressions(list_expr1, list_expr2, title_plot = 'Histogram normalization')
     plt.savefig(tiff_path + '_plot_hist_norm.png', dpi=400)
     
     img_channel2_norm = normalize_background(img_channel2_original, img_segmentation_nuclei, flag_norm_type = 'Background')
@@ -210,9 +221,10 @@ def main():
     list_cell_expr1_expr2 = get_joint_expr_per_cell(img_segmentation_nuclei,\
                                                     img_channel2_norm, img_channel3_norm,\
                                                     img_segmentation_channel2, img_segmentation_channel3)
+    list_expr1, list_expr2 = extract_expr1_expr2(list_cell_expr1_expr2)
     save_csv(list_cell_expr1_expr2, tiff_path + '_back_norm_values.csv')
     
-    plot_expressions(list_cell_expr1_expr2, title_plot = 'Background normalization')
+    plot_expressions(list_expr1, list_expr2, title_plot = 'Background normalization')
     plt.savefig(tiff_path + '_plot_back_norm.png', dpi=400)
 
     
