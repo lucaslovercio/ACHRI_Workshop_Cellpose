@@ -5,6 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde, ttest_ind
 import cv2
+import matplotlib.colors as mcolors
+import os
 
 def draw_concentric_circles( rgb_colors, radius=30, img_size=None, background=(0, 0, 0)
 ):
@@ -243,6 +245,59 @@ def add_colorbar(
     )
     
     return img
+
+def apply_colour_map(df, expr_cols, cmap, normalize_per_row=False):
+    """
+    Adds an _RGB column for every expression column in expr_cols.
+
+    normalize_per_row=False : global min/max across all rows and columns (original behaviour).
+    normalize_per_row=True  : each row is normalised independently to [0, 1];
+                              the smallest value in the row maps to 0, the largest to 1.
+    Returns a copy of df with the new columns appended.
+    """
+    df = df.copy()
+    if normalize_per_row:
+        row_vals  = df[expr_cols]
+        row_min   = row_vals.min(axis=1)
+        row_max   = row_vals.max(axis=1)
+        row_range = (row_max - row_min).replace(0, 1)   # avoid /0 when all values equal
+        for col in expr_cols:
+            norm_col = (df[col] - row_min) / row_range
+            df[col + '_norm'] = norm_col
+            df[col + '_RGB']  = norm_col.apply(lambda x: cmap(float(x))[:3])
+    else:
+        vmin = df[expr_cols].min().min()
+        vmax = df[expr_cols].max().max()
+        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+        for col in expr_cols:
+            df[col + '_RGB'] = df[col].apply(lambda x: cmap(norm(x))[:3])
+    return df
+
+
+def draw_rings_and_cake(df, vsi_folder_plots, cmap, suffix=''):
+    """
+    For every row in df, draws a concentric-rings image (outside → around → in)
+    and saves it.  Then builds and saves the cake plot.
+
+    suffix : string appended to every output filename so global and per-row
+             outputs coexist in the same folder (e.g. '_global', '_per_row').
+    """
+    list_rings      = []
+    list_treatments = []
+    for _, row in df.iterrows():
+        rgb_list = [
+            row['Expression_outside_speckle_RGB'],
+            row['Expression_around_speckle_RGB'],
+            row['Expression_in_speckle_RGB'],
+        ]
+        img   = draw_concentric_circles(rgb_list, radius=300)
+        label = row['Treatment'] + '_' + row['Speckle_marker']
+        list_treatments.append(label)
+        cv2.imwrite(os.path.join(vsi_folder_plots, label + suffix + '.png'), img)
+        list_rings.append(img)
+
+    img_cake = cake_plot(list_rings, list_treatments, cmap)
+    cv2.imwrite(os.path.join(vsi_folder_plots, 'cake_plot' + suffix + '.png'), img_cake)
 
 def cake_plot(list_images, labels, cmap, margin=120, label_offset=50, font_scale=0.5, thickness=1):
     assert len(list_images) == len(labels)
