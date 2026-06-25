@@ -5,9 +5,11 @@ import sys
 root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
 sys.path.append(root_path)
 from cellpose import models
-from aux_functions.functionPercNorm import functionPercNorm
+#from aux_functions.functionPercNorm import functionPercNorm
 from scipy.ndimage import label, generate_binary_structure, binary_closing
 from skimage import measure
+from skimage.morphology import disk as skdisk, binary_erosion as sk_binary_erosion
+
 class CellProperty3D:
   def __init__(self, xCentroid, yCentroid, zCentroid, label, volume, bbox):
     self.xCentroid = xCentroid
@@ -38,7 +40,7 @@ def get_props_per_cell3D(img_segmentation):
     
     return regionprops_selected
 
-def segment_slice_by_slice(volume, cellpose_model_path, diameter, flag_gpu, flag_closing = False, flag_filter_by_size = False, size_min = 100):
+def segment_slice_by_slice(volume, cellpose_model_path, diameter, flag_gpu, erosion = -1, flag_closing = False, flag_filter_by_size = False, size_min = 100):
     h,w,d = np.shape(volume)
     volume_segmented = np.uint16(np.zeros_like(volume))
     model_trained_nuclei = models.CellposeModel(pretrained_model=cellpose_model_path, gpu=flag_gpu)
@@ -46,6 +48,15 @@ def segment_slice_by_slice(volume, cellpose_model_path, diameter, flag_gpu, flag
     for z in range(0,d):
         slice_volume = volume[:,:,z]
         masks_nuclei, _, _ = model_trained_nuclei.eval(slice_volume, channels=[0,0], diameter=diameter, normalize=True)
+        if erosion > 0:
+            footprint = skdisk(erosion)
+            eroded = np.zeros_like(masks_nuclei)
+            for lbl in np.unique(masks_nuclei):
+                if lbl == 0:
+                    continue
+                obj_mask = sk_binary_erosion(masks_nuclei == lbl, footprint)
+                eroded[obj_mask] = lbl
+            masks_nuclei = eroded
         volume_segmented[:,:,z] = masks_nuclei > 0
         
     if flag_closing: # It must be a integer

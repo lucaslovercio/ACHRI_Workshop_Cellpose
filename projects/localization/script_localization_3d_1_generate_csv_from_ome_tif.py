@@ -14,7 +14,7 @@ list_classes = ['WT', 'H100Afs', 'M725T', 'M639V', 'A589P', 'D670N'] #This has t
 nuclei_channel_number = 0
 speckle_channel_number = 1
 signal_channel_number = 3
-
+erosion_speckle = 2
 ###########################################################################
 
 # Rarely you will chenge this:
@@ -39,7 +39,7 @@ flag_filter_by_size = True
 flag_create_folders = True
 min_pixels_matching = 100
 list_distance_expansion = [3]
-list_threshold = [300]
+list_threshold = [100]
 list_flag_use_median = [True]
 
 ###########################################################################
@@ -119,7 +119,7 @@ def get_volume_from_ome_channels(oir_file, flag_norm=True):
 def main():
     fullpath_model_speckle = os.path.join(folder_models, model_name_speckle)
     fullpath_model_nuclei = os.path.join(folder_models, model_name_nuclei)
-    if not (os.path.exists(fullpath_model_nuclei)) and not(os.path.exists(fullpath_model_speckle)):
+    if not (os.path.exists(fullpath_model_nuclei)) or not(os.path.exists(fullpath_model_speckle)):
         print("One or more segmentation models could not be found")
         sys.exit(1)
     
@@ -230,7 +230,7 @@ def main():
                                 
                                 
                                 print('Segmenting speckle')
-                                mask_speckle = segment_slice_by_slice(channel_speckle, fullpath_model_speckle, diameter=None, flag_gpu = flag_gpu, \
+                                mask_speckle = segment_slice_by_slice(channel_speckle, fullpath_model_speckle, erosion = erosion_speckle, diameter=None, flag_gpu = flag_gpu, \
                                                                       flag_closing = flag_closing , flag_filter_by_size = flag_filter_by_size, size_min = size_min)
                                 total_speckle = len(np.unique(mask_speckle)) - 1
                                 # Around speckles

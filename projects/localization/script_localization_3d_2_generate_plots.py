@@ -7,7 +7,6 @@ vsi_folder = '' # Write the folder path, without the last \ or / . In Windows, p
 csv_filename = '' # Write the folder path, without the last \ or / . In Windows, place an r before the ''.
 signal_of_interest = 'PRPF6'
 
-
 ###########################################################################
 
 import os
