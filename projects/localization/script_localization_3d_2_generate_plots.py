@@ -7,6 +7,7 @@ vsi_folder = '' # Write the folder path, without the last \ or / . In Windows, p
 csv_filename = '' # Write the folder path, without the last \ or / . In Windows, place an r before the ''.
 signal_of_interest = 'PRPF6'
 
+
 ###########################################################################
 
 import os
@@ -20,7 +21,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from functions_localization import compare_expression_around_speckle,\
     apply_colour_map, draw_rings_and_cake
-
+from aux_functions.functions_plots import plot_violin_pct
 
 def main():
     
@@ -37,6 +38,15 @@ def main():
         csv_input = os.path.join(vsi_folder, csv_filename)                    
         # Load CSV
         df = pd.read_csv(csv_input)
+        
+        # Normalization for percentual expression
+        df['total_expression'] = (df['Expression_in_speckle']
+                                  + df['Expression_around_speckle']
+                                  + df['Expression_outside_speckle'])
+        
+        df['Expression_in_speckle_perc']        = (df['Expression_in_speckle'] / df['total_expression'])
+        df['Expression_around_speckle_perc']    = (df['Expression_around_speckle'] / df['total_expression'])
+        df['Expression_outside_speckle_perc']   = (df['Expression_outside_speckle'] / df['total_expression'])
 
         # Retrieve lists
         list_all_label_image = df['Treatment'].tolist()
@@ -70,6 +80,10 @@ def main():
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
             plt.savefig(png_output_hist, dpi=800)
             
+            plot_violin_pct(df, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
+            
             txt_output += txt_comparison + '\n'
             
             column='Speckle_size'
@@ -78,7 +92,35 @@ def main():
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
             plt.savefig(png_output_hist, dpi=800)
             
+            plot_violin_pct(df, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
+            
             txt_output += txt_comparison + '\n'
+
+            column='Expression_in_speckle_perc'
+            compare_expression_around_speckle(df,treatment1,treatment2,column=column)
+            txt_comparison = 'SPECKLE-LEVEL-sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
+            png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
+            plt.savefig(png_output_hist, dpi=800)
+            plt.close('all')
+            txt_output += txt_comparison + '\n'
+
+            plot_violin_pct(df, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
+
+            column='Expression_around_speckle_perc'
+            compare_expression_around_speckle(df,treatment1,treatment2,column=column)
+            txt_comparison = 'SPECKLE-LEVEL-sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
+            png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
+            plt.savefig(png_output_hist, dpi=800)
+            plt.close('all')
+            txt_output += txt_comparison + '\n'
+
+            plot_violin_pct(df, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
             
         
         df_mean = (
@@ -94,7 +136,11 @@ def main():
                 'Expression_around_speckle': 'mean',
                 'Expression_outside_speckle': 'mean',
                 'Ratio_in_around': 'mean',
-                'Ratio_in_out': 'mean'
+                'Ratio_in_out': 'mean',
+                'total_expression': 'mean',
+                'Expression_in_speckle_perc': 'mean',
+                'Expression_around_speckle_perc': 'mean',
+                'Expression_outside_speckle_perc': 'mean'
             })
         )
         
@@ -129,6 +175,10 @@ def main():
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
             plt.savefig(png_output_hist, dpi=800)
             
+            plot_violin_pct(df_mean, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
+            
             txt_output += txt_comparison + '\n'
             
             column='Speckle_size'
@@ -136,6 +186,30 @@ def main():
             txt_comparison = 'NUCLEI-LEVEL-mean_sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
             plt.savefig(png_output_hist, dpi=800)
+            
+            txt_output += txt_comparison + '\n'
+            
+            column='Expression_in_speckle_perc'
+            compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
+            txt_comparison = 'NUCLEI-LEVEL-mean_sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
+            png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
+            plt.savefig(png_output_hist, dpi=800)
+            
+            plot_violin_pct(df_mean, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
+            
+            txt_output += txt_comparison + '\n'
+            
+            column='Expression_around_speckle_perc'
+            compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
+            txt_comparison = 'NUCLEI-LEVEL-mean_sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
+            png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
+            plt.savefig(png_output_hist, dpi=800)
+            
+            plot_violin_pct(df_mean, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
             
             txt_output += txt_comparison + '\n'
             
@@ -174,7 +248,10 @@ def main():
                 [
                     'Expression_in_speckle',
                     'Expression_around_speckle',
-                    'Expression_outside_speckle'
+                    'Expression_outside_speckle',
+                    'Expression_in_speckle_perc',
+                    'Expression_around_speckle_perc',
+                    'Expression_outside_speckle_perc'
                 ]
             ]
             .mean()
@@ -184,29 +261,32 @@ def main():
         df_treat_marker.to_csv(csv_output_expressions, index=False)
         
         # Create colour map
-        expr_cols = [
+        list_suffix = ['_absExpr','_percExpr']
+        list_expr_cols = [[
             'Expression_in_speckle',
             'Expression_around_speckle',
-            'Expression_outside_speckle'
-        ]
-        
-        cmap = matplotlib.colormaps['Reds']
-        
-        # ── Global normalisation (original behaviour) ─────────────────────────
-        df_global = apply_colour_map(df_treat_marker, expr_cols, cmap, normalize_per_row=False)
-        df_global.to_csv(
-            os.path.join(vsi_folder_plots, 'expressions_colour_map_global.csv'), index=False)
-        print('-- Generating Cake Plot (global normalisation) --')
-        draw_rings_and_cake(df_global, vsi_folder_plots, cmap, suffix='_global')
+            'Expression_outside_speckle'],
+            ['Expression_in_speckle_perc',
+            'Expression_around_speckle_perc',
+            'Expression_outside_speckle_perc']
+            ]
+        cmap = plt.get_cmap('Reds')
+        for expr_cols,suf in zip(list_expr_cols, list_suffix):
 
-        # ── Per-row normalisation ─────────────────────────────────────────────
-        # Each Treatment/Speckle_marker pair is normalised independently:
-        # the minimum value in the row → 0, the maximum → 1.
-        df_per_row = apply_colour_map(df_treat_marker, expr_cols, cmap, normalize_per_row=True)
-        df_per_row.to_csv(
-            os.path.join(vsi_folder_plots, 'expressions_colour_map_per_row.csv'), index=False)
-        print('-- Generating Cake Plot (per-row normalisation) --')
-        draw_rings_and_cake(df_per_row, vsi_folder_plots, cmap, suffix='_per_row')
+            # ── Global normalisation (original behaviour) ─────────────────────────
+            df_global = apply_colour_map(df_treat_marker, expr_cols, cmap = cmap, normalize_per_row=False)
+            df_global.to_csv(
+                os.path.join(vsi_folder_plots, 'expressions_colour_map'+suf+'_global'+'.csv'), index=False)
+            columns = [s + "_RGB" for s in expr_cols]
+            draw_rings_and_cake(df_global, vsi_folder_plots, columns = columns, cmap = cmap, suffix=suf+'_global')
+
+            # ── Per-row normalisation ─────────────────────────────────────────────
+            # Each Treatment/Speckle_marker pair is normalised independently:
+            # the minimum value in the row → 0, the maximum → 1.
+            df_per_row = apply_colour_map(df_treat_marker, expr_cols, cmap = cmap, normalize_per_row=True)
+            df_per_row.to_csv(
+                os.path.join(vsi_folder_plots, 'expressions_colour_map'+suf+'_per_row'+'.csv'), index=False)
+            draw_rings_and_cake(df_per_row, vsi_folder_plots, columns = columns, cmap = cmap, suffix=suf+'_per_row')
         
         txt_output += '----------------------------\n\n'
         

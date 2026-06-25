@@ -274,22 +274,12 @@ def apply_colour_map(df, expr_cols, cmap, normalize_per_row=False):
     return df
 
 
-def draw_rings_and_cake(df, vsi_folder_plots, cmap, suffix=''):
-    """
-    For every row in df, draws a concentric-rings image (outside → around → in)
-    and saves it.  Then builds and saves the cake plot.
+def draw_rings_and_cake(df, vsi_folder_plots, columns, cmap, suffix=''):
 
-    suffix : string appended to every output filename so global and per-row
-             outputs coexist in the same folder (e.g. '_global', '_per_row').
-    """
     list_rings      = []
     list_treatments = []
     for _, row in df.iterrows():
-        rgb_list = [
-            row['Expression_outside_speckle_RGB'],
-            row['Expression_around_speckle_RGB'],
-            row['Expression_in_speckle_RGB'],
-        ]
+        rgb_list = [row[col_name] for col_name in columns]
         img   = draw_concentric_circles(rgb_list, radius=300)
         label = row['Treatment'] + '_' + row['Speckle_marker']
         list_treatments.append(label)
