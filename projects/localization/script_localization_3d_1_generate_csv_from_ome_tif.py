@@ -14,7 +14,7 @@ list_classes = ['WT', 'H100Afs', 'M725T', 'M639V', 'A589P', 'D670N'] #This has t
 nuclei_channel_number = 0
 speckle_channel_number = 1
 signal_channel_number = 3
-erosion_speckle = 2
+
 ###########################################################################
 
 # Rarely you will chenge this:
@@ -30,7 +30,7 @@ ending_volume_nuclei_segmentation_binary = '_nuclei_segmentation_binary.tiff'
 ending_volume_speckle_segmentation_binary = '_speckle_segmentation_binary.tiff'
 ending_volume_around_speckle_segmentation_binary = '_around_speckle_segmentation_binary.tiff'
 
-model_name_nuclei   =  'nuclei_60x_model_nuclei_diam_100_ji_0.9638.634204'
+model_name_nuclei   =  'nuclei60x_model_nuclei_diam_100_ji_0.9518.934259'
 model_name_speckle  =  'Speckle_SC35_4B_60x_model_nuclei_diam_28_ji_0.5785.073982'
 
 flag_gpu = False # If not sure, use False
@@ -41,7 +41,8 @@ min_pixels_matching = 100
 list_distance_expansion = [3]
 list_threshold = [100]
 list_flag_use_median = [True]
-
+erosion_speckle = 2
+erosion_nucleus = 30
 ###########################################################################
 
 import os
@@ -218,8 +219,8 @@ def main():
                                     functionSaveTIFFMultipage(channel_PRPF6, fullpath_tiff_channel_PRPF6, 8)
                                 
                                 # Segment volumes
-                                print('Segmenting volumes')
-                                masks_nuclei = segment_slice_by_slice(channel_nuclei, fullpath_model_nuclei, diameter=None, flag_gpu = flag_gpu, \
+                                print('Segmenting nuclei')
+                                masks_nuclei, _ = segment_slice_by_slice(channel_nuclei, fullpath_model_nuclei, erosion = erosion_nucleus, diameter=None, flag_gpu = flag_gpu, \
                                                                       flag_closing = flag_closing, flag_filter_by_size = flag_filter_by_size, size_min = size_min)
                                 total_nuclei = len(np.unique(masks_nuclei)) - 1
                                 fullpath_tiff_nuclei_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei_segmentation)
@@ -230,7 +231,7 @@ def main():
                                 
                                 
                                 print('Segmenting speckle')
-                                mask_speckle = segment_slice_by_slice(channel_speckle, fullpath_model_speckle, erosion = erosion_speckle, diameter=None, flag_gpu = flag_gpu, \
+                                mask_speckle, _ = segment_slice_by_slice(channel_speckle, fullpath_model_speckle, erosion = erosion_speckle, diameter=None, flag_gpu = flag_gpu, \
                                                                       flag_closing = flag_closing , flag_filter_by_size = flag_filter_by_size, size_min = size_min)
                                 total_speckle = len(np.unique(mask_speckle)) - 1
                                 # Around speckles
