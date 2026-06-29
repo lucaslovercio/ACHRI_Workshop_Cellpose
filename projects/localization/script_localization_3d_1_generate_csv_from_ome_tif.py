@@ -30,7 +30,7 @@ ending_volume_nuclei_segmentation_binary = '_nuclei_segmentation_binary.tiff'
 ending_volume_speckle_segmentation_binary = '_speckle_segmentation_binary.tiff'
 ending_volume_around_speckle_segmentation_binary = '_around_speckle_segmentation_binary.tiff'
 
-model_name_nuclei   =  'nuclei60x_model_nuclei_diam_100_ji_0.9518.934259'
+model_name_nuclei   =  'nuclei_60x_model_nuclei_diam_100_ji_0.9518_20260626.934259'
 model_name_speckle  =  'Speckle_SC35_4B_60x_model_nuclei_diam_28_ji_0.5785.073982'
 
 flag_gpu = False # If not sure, use False
