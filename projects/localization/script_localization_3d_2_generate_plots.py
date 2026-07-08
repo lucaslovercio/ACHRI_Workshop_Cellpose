@@ -57,6 +57,16 @@ def main():
         png_output_expressions = os.path.join(vsi_folder_plots, 'SPECKLE-LEVEL-expressions_voxels_in_and_outside.png')
         plt.savefig(png_output_expressions, dpi=800)
         
+        # Retrieve lists
+        list_all_label_image = df['Treatment'].tolist()
+        list_all_speckle_expression = df['Expression_in_speckle_perc'].tolist()
+        list_all_outside_speckle_expression = df['Expression_outside_speckle_perc'].tolist()
+        
+        plot_expressions_labelled(list_all_speckle_expression, list_all_outside_speckle_expression, list_all_label_image, 'percentual expression', \
+                                  label_x = 'in_speckle_perc', label_y = 'outside_speckle_perc', figsize = 8, flag_show = False)
+        png_output_expressions = os.path.join(vsi_folder_plots, 'SPECKLE-LEVEL-expressions_voxels_in_perc_and_outside_perc.png')
+        plt.savefig(png_output_expressions, dpi=800)
+        
         list_classes_effective = list(set(list_all_label_image))
         
         if len(list_classes_effective) >= 2:
@@ -73,6 +83,7 @@ def main():
             
             txt_output += txt_comparison + '\n'
             
+            #------------------------------------------------------------------------------------------------
             column='Ratio_in_out'
             compare_expression_around_speckle(df,treatment1,treatment2,column=column)
             txt_comparison = 'SPECKLE-LEVEL-expressions_per_speckle_'+ column + '_' + treatment1 + '_' + treatment2
@@ -85,6 +96,7 @@ def main():
             
             txt_output += txt_comparison + '\n'
             
+            #------------------------------------------------------------------------------------------------
             column='Speckle_size'
             compare_expression_around_speckle(df,treatment1,treatment2,column=column)
             txt_comparison = 'SPECKLE-LEVEL-sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
@@ -97,9 +109,10 @@ def main():
             
             txt_output += txt_comparison + '\n'
 
+            #------------------------------------------------------------------------------------------------
             column='Expression_in_speckle_perc'
             compare_expression_around_speckle(df,treatment1,treatment2,column=column)
-            txt_comparison = 'SPECKLE-LEVEL-sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
+            txt_comparison = 'SPECKLE-LEVEL-expressions_per_speckle_'+ column + '_' + treatment1 + '_' + treatment2
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
             plt.savefig(png_output_hist, dpi=800)
             plt.close('all')
@@ -109,9 +122,10 @@ def main():
             png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
             plt.savefig(png_output_violin, dpi=800)
 
+            #------------------------------------------------------------------------------------------------
             column='Expression_around_speckle_perc'
             compare_expression_around_speckle(df,treatment1,treatment2,column=column)
-            txt_comparison = 'SPECKLE-LEVEL-sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
+            txt_comparison = 'SPECKLE-LEVEL-expressions_per_speckle_'+ column + '_' + treatment1 + '_' + treatment2
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
             plt.savefig(png_output_hist, dpi=800)
             plt.close('all')
@@ -142,6 +156,26 @@ def main():
                 'Expression_outside_speckle_perc': 'mean'
             })
         )
+        del df # to avoid mistakes
+        
+        list_all_label_image = df_mean['Treatment'].tolist()
+        list_all_speckle_expression = df_mean['Expression_in_speckle'].tolist()
+        list_all_outside_speckle_expression = df_mean['Expression_outside_speckle'].tolist()
+        
+        plot_expressions_labelled(list_all_speckle_expression, list_all_outside_speckle_expression, list_all_label_image, 'expression - nuclei level', \
+                                  label_x = 'in_speckle', label_y = 'outside_speckle', figsize = 8, flag_show = False)
+        png_output_expressions = os.path.join(vsi_folder_plots, 'NUCLEI-LEVEL-expressions_voxels_in_and_outside.png')
+        plt.savefig(png_output_expressions, dpi=800)
+        
+        
+        list_all_label_image = df_mean['Treatment'].tolist()
+        list_all_speckle_expression = df_mean['Expression_in_speckle_perc'].tolist()
+        list_all_outside_speckle_expression = df_mean['Expression_outside_speckle_perc'].tolist()
+        
+        plot_expressions_labelled(list_all_speckle_expression, list_all_outside_speckle_expression, list_all_label_image, 'percentual expression - nuclei level', \
+                                  label_x = 'in_speckle_perc', label_y = 'outside_speckle_perc', figsize = 8, flag_show = False)
+        png_output_expressions = os.path.join(vsi_folder_plots, 'NUCLEI-LEVEL-expressions_voxels_in_perc_and_outside_perc.png')
+        plt.savefig(png_output_expressions, dpi=800)
         
         csv_output_expressions = os.path.join(vsi_folder_plots, 'NUCLEI-LEVEL-mean_expressions.csv')
         df_mean.to_csv(csv_output_expressions, index=False)
@@ -150,7 +184,7 @@ def main():
             treatment1 = list_classes_effective[0]
             treatment2 = list_classes_effective[1]
             
-            
+            #------------------------------------------------------------------------------------------------
             column='Expression_outside_speckle'
             compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
             txt_comparison = 'NUCLEI-LEVEL-mean_expressions_'+ column + '_' + treatment1 + '_' + treatment2
@@ -159,7 +193,7 @@ def main():
             
             txt_output += txt_comparison + '\n'
             
-            
+            #------------------------------------------------------------------------------------------------
             column='Expression_in_speckle'
             compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
             txt_comparison = 'NUCLEI-LEVEL-mean_expressions_'+ column + '_' + treatment1 + '_' + treatment2
@@ -168,6 +202,7 @@ def main():
             
             txt_output += txt_comparison + '\n'
             
+            #------------------------------------------------------------------------------------------------
             column='Ratio_in_out'
             compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
             txt_comparison = 'NUCLEI-LEVEL-mean_expressions_'+ column + '_' + treatment1 + '_' + treatment2
@@ -180,15 +215,8 @@ def main():
             
             txt_output += txt_comparison + '\n'
             
+            #------------------------------------------------------------------------------------------------
             column='Speckle_size'
-            compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
-            txt_comparison = 'NUCLEI-LEVEL-mean_sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
-            png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
-            plt.savefig(png_output_hist, dpi=800)
-            
-            txt_output += txt_comparison + '\n'
-            
-            column='Expression_in_speckle_perc'
             compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
             txt_comparison = 'NUCLEI-LEVEL-mean_sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
@@ -200,9 +228,23 @@ def main():
             
             txt_output += txt_comparison + '\n'
             
+            #------------------------------------------------------------------------------------------------
+            column='Expression_in_speckle_perc'
+            compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
+            txt_comparison = 'NUCLEI-LEVEL-mean_expressions_'+ column + '_' + treatment1 + '_' + treatment2
+            png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
+            plt.savefig(png_output_hist, dpi=800)
+            
+            plot_violin_pct(df_mean, treatment_col = 'Treatment', col = column, ylabel = column, treatments = list_classes_effective)
+            png_output_violin = os.path.join(vsi_folder_plots, 'violin_'+txt_comparison+'.png')
+            plt.savefig(png_output_violin, dpi=800)
+            
+            txt_output += txt_comparison + '\n'
+            
+            #------------------------------------------------------------------------------------------------
             column='Expression_around_speckle_perc'
             compare_expression_around_speckle(df_mean,treatment1,treatment2,column=column)
-            txt_comparison = 'NUCLEI-LEVEL-mean_sizes_of_speckles_'+ column + '_' + treatment1 + '_' + treatment2
+            txt_comparison = 'NUCLEI-LEVEL-mean_expressions_'+ column + '_' + treatment1 + '_' + treatment2
             png_output_hist = os.path.join(vsi_folder_plots, txt_comparison +'.png')
             plt.savefig(png_output_hist, dpi=800)
             
@@ -255,6 +297,7 @@ def main():
             ]
             .mean()
         )
+        del df_mean # To avoid mistakes
         
         csv_output_expressions = os.path.join(vsi_folder_plots, 'TREATMENT-LEVEL-mean_expressions.csv')
         df_treat_marker.to_csv(csv_output_expressions, index=False)

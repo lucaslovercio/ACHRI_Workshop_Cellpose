@@ -470,18 +470,21 @@ def plot_expressions_labelled(list_expr1, list_expr2, list_labels, title_plot, l
     y = np.asarray(list_expr2)
     labels = np.asarray(list_labels)
     max_expr = np.max([np.max(x),np.max(y)])
+    min_expr = np.min([np.min(x),np.min(y)])
     plt.figure(figsize=(figsize, figsize))
     unique_labels = np.unique(list_labels)
     cmap = plt.cm.get_cmap('Set1', len(unique_labels))
 
     for i, lab in enumerate(unique_labels):
-        
         mask = labels == lab
+        r, g, b, _ = cmap(i)
         plt.scatter(
             x[mask],
             y[mask],
             label=lab,
-            color=cmap(i),
+            facecolors=(r, g, b, 0.35),
+            edgecolors=(r, g, b, 1.0),
+            linewidths=0.8,
             s=size_dot
         )
             
@@ -489,8 +492,8 @@ def plot_expressions_labelled(list_expr1, list_expr2, list_labels, title_plot, l
     plt.xlabel(label_x)
     plt.ylabel(label_y)
     plt.legend()
-    plt.ylim(0, max_expr + 0.01)
-    plt.xlim(0, max_expr + 0.01)
+    plt.ylim(min_expr - 0.01, max_expr + 0.01)
+    plt.xlim(min_expr - 0.01, max_expr + 0.01)
     
     if flag_show:
         plt.show()
