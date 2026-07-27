@@ -6,20 +6,12 @@ Created on Tue Oct 24 14:37:27 2023
 @author: lucas
 """
 
-import cv2
-import numpy as np
-from cellpose import models
-from cellpose.io import imread
-import matplotlib.pyplot as plt
-from quantify_segmentation import get_props_per_cell, detect_big_cells, detect_not_rounded_cells, get_img_from_idx_cells, list_cells
-from aux_functions.functionPercNorm import functionPercNorm, get_one_channel
-
 ###################################   PARAMETERS   #########################
 
-image_input         = '/mnt/DATA/ACHRI/2023-09 Workshop/Yang/TIFF/20x-CSDE1,NEX-B2-P6-HOMO WT-1-1_exported_from_imageJ.tif_channel_2.tif_HistNorm.png'
-path_model_trained  = '/mnt/DATA/ACHRI/2023-09 Workshop/FINAL_MATERIAL/Best_Architectures/Neurons_diam15_nuclei_model.981474'
-flag_normalize = False
-flag_gpu = True
+image_input         = ''
+path_model_trained  = ''
+flag_normalize = True
+flag_gpu = False
 channels = [[0,0]] #Same channels as training
 th_size = 100
 
@@ -29,8 +21,21 @@ segmentation_output = image_input + '_seg.png'
 
 ##############################################################################
 
+import cv2
+import numpy as np
+from cellpose import models
+from cellpose.io import imread
+import matplotlib.pyplot as plt
+from quantify_segmentation import get_props_per_cell, detect_big_cells, detect_not_rounded_cells, get_img_from_idx_cells, list_cells
+from aux_functions.functionPercNorm import functionPercNorm, get_one_channel
+import os
+import sys
 
 def main():
+    
+    if not os.path.isfile(path_model_trained):
+        print(f"Error: el archivo '{path_model_trained}' no existe", file=sys.stderr)
+        sys.exit(1)
     
     #Load model
     model_trained = models.CellposeModel(pretrained_model=path_model_trained, gpu=flag_gpu)
