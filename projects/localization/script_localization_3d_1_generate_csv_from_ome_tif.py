@@ -9,8 +9,8 @@ folder_models   = '' # Write the folder path, without the last \ or / . In Windo
 # Change for every folder and microscope set up:
 
 signal_of_interest = 'PRPF6'
-list_speckle_markers = ['PRPF4B'] #This has to be a list!
-list_classes = ['WT', 'H100Afs', 'M725T', 'M639V', 'A589P', 'D670N'] #This has to be a list!
+list_speckle_markers = ['PEGFP'] #This has to be a list!
+list_classes = ['WT', 'H1000Afs', 'H1000AFS', 'M725T', 'M639V', 'A589P', 'D670N'] #This has to be a list!
 nuclei_channel_number = 0
 speckle_channel_number = 1
 signal_channel_number = 3
@@ -43,6 +43,9 @@ list_threshold = [100]
 list_flag_use_median = [True]
 erosion_speckle = 2
 erosion_nucleus = 30
+resize_scale = -1 # -1 no resize when the method was trained for the correct resolution and object size.
+
+
 ###########################################################################
 
 import os
@@ -221,7 +224,7 @@ def main():
                                 # Segment volumes
                                 print('Segmenting nuclei')
                                 masks_nuclei, _ = segment_slice_by_slice(channel_nuclei, fullpath_model_nuclei, erosion = erosion_nucleus, diameter=None, flag_gpu = flag_gpu, \
-                                                                      flag_closing = flag_closing, flag_filter_by_size = flag_filter_by_size, size_min = size_min)
+                                                                      flag_closing = flag_closing, flag_filter_by_size = flag_filter_by_size, size_min = size_min, resize_scale = resize_scale)
                                 total_nuclei = len(np.unique(masks_nuclei)) - 1
                                 fullpath_tiff_nuclei_segmentation = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei_segmentation)
                                 fullpath_tiff_nuclei_segmentation_binary = os.path.join(folder_output_sample,oir_file + ending_volume_nuclei_segmentation_binary)
@@ -232,7 +235,7 @@ def main():
                                 
                                 print('Segmenting speckle')
                                 mask_speckle, _ = segment_slice_by_slice(channel_speckle, fullpath_model_speckle, erosion = erosion_speckle, diameter=None, flag_gpu = flag_gpu, \
-                                                                      flag_closing = flag_closing , flag_filter_by_size = flag_filter_by_size, size_min = size_min)
+                                                                      flag_closing = flag_closing , flag_filter_by_size = flag_filter_by_size, size_min = size_min, resize_scale = resize_scale)
                                 total_speckle = len(np.unique(mask_speckle)) - 1
                                 # Around speckles
                                 mask_speckle_around = expand_labels(mask_speckle, distance = distance_expansion)
@@ -357,27 +360,49 @@ def main():
                                         with open(output_script_path, "w") as f:
                                             f.write(final_script)
                                         
-                                    if flag_create_folders:    
-                                        txt_output_sample = os.path.join(folder_output_sample, oir_file + '_summary.txt')
-                                        f = open(txt_output_sample, "w")
-                                        
-                                        f.write(oir_file + '\n')
-                                        f.write('------------------------------------------------------- \n')        
-                                        f.write('N channels: ' + str(n_images) + '\n')
-                                        f.write('Channels (starting in 0)\n')
-                                        f.write('Channel speckles: ' + str(speckle_channel_number) + '\n')
-                                        f.write('Channel signal: ' + str(signal_channel_number) + '\n')
-                                        
-                                        f.write('------------------------------------------------------- \n')        
-                                        f.write('Total speckles: ' + str(total_speckle) + '\n')
-                                        f.write('Total valid speckles: ' + str( len(labels_speckle_matched)) + '\n')
-                                        f.write('Total nuclei: ' + str( total_nuclei) + '\n')
-                                        f.write('------------------------------------------------------- \n')        
-                                        f.write('physical_x_y: ' + str( physical_x_y) + '\n')
-                                        f.write('ratio_z: ' + str( ratio_z) + '\n')
-                                        
-                                        f.close()
-                                        del f
+                                if flag_create_folders:    
+                                    txt_output_sample = os.path.join(folder_output_sample, oir_file + '_summary.txt')
+                                    f = open(txt_output_sample, "w")
+                                    
+                                    f.write(oir_file + '\n')
+                                    f.write('------------------------------------------------------- \n')        
+                                    f.write('N channels: ' + str(n_images) + '\n')
+                                    f.write('Channels (starting in 0)\n')
+                                    f.write('Channel speckles: ' + str(speckle_channel_number) + '\n')
+                                    f.write('Channel signal: ' + str(signal_channel_number) + '\n')
+                                    
+                                    f.write('------------------------------------------------------- \n')        
+                                    f.write('Total speckles: ' + str(total_speckle) + '\n')
+                                    f.write('Total valid speckles: ' + str( len(labels_speckle_matched)) + '\n')
+                                    f.write('Total nuclei: ' + str( total_nuclei) + '\n')
+                                    f.write('------------------------------------------------------- \n')        
+                                    f.write('physical_x_y: ' + str( physical_x_y) + '\n')
+                                    f.write('ratio_z: ' + str( ratio_z) + '\n')
+                                    f.write('---------------------PARAMETERS USED---------------------------------- \n')        
+                                    f.write('label_image: '+label_image+ '\n')
+                                    f.write('speckle_marker: '+speckle_marker+ '\n')
+                                    
+                                    f.write('nuclei_channel_number:' + str(nuclei_channel_number)+ '\n')
+                                    f.write('speckle_channel_number:' + str(speckle_channel_number)+ '\n')
+                                    f.write('signal_channel_number:' + str(signal_channel_number)+ '\n')
+
+                                    f.write('model_name_nuclei:' + str(model_name_nuclei)+ '\n')
+                                    f.write('model_name_speckle:' + str(model_name_speckle)+ '\n')
+
+                                    f.write('flag_gpu:' + str(flag_gpu)+ '\n')
+                                    f.write('flag_closing:' + str(flag_closing)+ '\n')
+                                    f.write('flag_filter_by_size:' + str(flag_filter_by_size)+ '\n')
+                                    f.write('flag_create_folders:' + str(flag_create_folders)+ '\n')
+                                    f.write('min_pixels_matching:' + str(min_pixels_matching)+ '\n')
+                                    f.write('list_distance_expansion:' + str(list_distance_expansion)+ '\n')
+                                    f.write('list_threshold:' + str(list_threshold)+ '\n')
+                                    f.write('list_flag_use_median:' + str(list_flag_use_median)+ '\n')
+                                    f.write('erosion_speckle:' + str(erosion_speckle)+ '\n')
+                                    f.write('erosion_nucleus:' + str(erosion_nucleus)+ '\n')
+                                    f.write('resize_scale:' + str(resize_scale)+ '\n')
+                                    
+                                    f.close()
+                                    del f
                                 txt_output = txt_output + oir_file + " - Analyzed" + '\n'
                             else:
                                 txt_output = txt_output + oir_file + " - NO nuclei or speckle found" + '\n'

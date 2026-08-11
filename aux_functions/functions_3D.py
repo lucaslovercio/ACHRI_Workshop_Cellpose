@@ -10,6 +10,7 @@ from scipy.ndimage import label, generate_binary_structure, binary_closing
 from skimage import measure
 from skimage.morphology import disk as skdisk, binary_erosion as sk_binary_erosion
 from skimage.segmentation import expand_labels
+from skimage.transform import resize
 
 class CellProperty3D:
   def __init__(self, xCentroid, yCentroid, zCentroid, label, volume, bbox):
@@ -43,13 +44,21 @@ def get_props_per_cell3D(img_segmentation):
 
 def segment_slice_by_slice(volume, cellpose_model_path, diameter, flag_gpu, erosion=-1, flag_closing = False,\
                             flag_fill_use_or = False, flag_projection_segmentation = False,\
-                            flag_filter_by_size = False, size_min = 100):
+                            flag_filter_by_size = False, size_min = 100, resize_scale = -1):
     h,w,d = np.shape(volume)
     volume_segmented = np.uint16(np.zeros_like(volume))
     model_trained = models.CellposeModel(pretrained_model=cellpose_model_path, gpu=flag_gpu)
     for z in range(0,d):
         slice_volume = volume[:,:,z]
-        masks_slice, _, _ = model_trained.eval(slice_volume, channels=[0,0], diameter=diameter, normalize=True)
+
+        if resize_scale > 0:
+            slice_up = resize(slice_volume,(h * resize_scale, w * resize_scale),order=1, mode='reflect', anti_aliasing=False,
+            preserve_range=True).astype(slice_volume.dtype)
+            masks_slice, _, _ = model_trained.eval(slice_up, channels=[0,0], diameter=diameter, normalize=True)
+            masks_slice = resize(masks_slice, (h, w), order=0, mode='edge', anti_aliasing=False, preserve_range=True).astype(masks_slice.dtype)
+        else:
+            masks_slice, _, _ = model_trained.eval(slice_volume, channels=[0,0], diameter=diameter, normalize=True)
+
         if erosion > 0:
             footprint = skdisk(erosion)
             eroded = np.zeros_like(masks_slice)
