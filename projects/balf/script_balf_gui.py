@@ -392,7 +392,7 @@ class ReviewGUI:
             btn_frame = tk.Frame(cls_frame, bg='#252526')
             btn_frame.pack(fill=tk.X, pady=1)
             btn = tk.Button(btn_frame, text=display, anchor='w',
-                            bg='#3c3f41', fg='white', relief=tk.GROOVE,
+                            bg='white', fg='black', relief=tk.GROOVE,
                             font=('Helvetica', 9),
                             activebackground='#1a6ec7', activeforeground='white',
                             command=lambda l=lbl: self._select_class(l))
@@ -403,12 +403,12 @@ class ReviewGUI:
         # Always-visible current-class indicator (works regardless of whether
         # the OS lets us recolor the buttons themselves).
         self._lbl_current_class = tk.Label(sidebar, text='Viewing: All Cells',
-                                            bg='#252526', fg='#fdcb6e',
+                                            bg='#252526', fg='#d35400',
                                             font=('Helvetica', 10, 'bold'), wraplength=220)
         self._lbl_current_class.pack(pady=(4, 2), padx=6)
 
-        self._cls_btn_frames[ALL_LABEL].config(bg='#fdcb6e')
-        self._cls_btns[ALL_LABEL].config(bg='#1a6ec7', fg='#fdcb6e',
+        self._cls_btn_frames[ALL_LABEL].config(bg='#d35400')
+        self._cls_btns[ALL_LABEL].config(bg='#1a6ec7', fg='#d35400',
                                           font=('Helvetica', 9, 'bold'), relief=tk.RAISED)
 
         self._section(sidebar, 'Counts (visible class)')
@@ -463,7 +463,7 @@ class ReviewGUI:
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4, pady=4)
 
         self._lbl_current_class_top = tk.Label(right, text='Viewing: All Cells',
-                                                bg='#1e1e1e', fg='#fdcb6e',
+                                                bg='#1e1e1e', fg='#d35400',
                                                 font=('Helvetica', 11, 'bold'))
         self._lbl_current_class_top.pack(side=tk.TOP, pady=(2, 0))
 
@@ -541,11 +541,11 @@ class ReviewGUI:
             if lbl == label:
                 # bg/relief may be ignored by native Aqua buttons on macOS,
                 # but fg and the Frame's bg (used as a border) always render.
-                btn.config(bg='#1a6ec7', fg='#fdcb6e',
+                btn.config(bg='#1a6ec7', fg='#d35400',
                            font=('Helvetica', 9, 'bold'), relief=tk.RAISED)
-                frame.config(bg='#fdcb6e')
+                frame.config(bg='#d35400')
             else:
-                btn.config(bg='#3c3f41', fg='white',
+                btn.config(bg='white', fg='black',
                            font=('Helvetica', 9), relief=tk.GROOVE)
                 frame.config(bg='#252526')
 
