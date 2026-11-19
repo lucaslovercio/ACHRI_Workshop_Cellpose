@@ -346,16 +346,21 @@ def remove_objects_in_edge(img_segmentation, margin = 1):
         
     return img_segmentation
 
-def get_density_bins(cell_props, img_width, img_height, axis=1, n_bins=20):
+def get_density_bins(cell_props, img_width, img_height, axis=1, n_bins=20, range_start=0, range_end=None):
+    # Histogram range [range_start, range_end]: by default [0, img_height], the whole image. Cells whose
+    # centroid falls outside the range are not counted.
+    if range_end is None:
+        range_end = img_height
     vector_axis_pos = []
-    
+
     for cell_prop in cell_props:
         if axis==0:
             vector_axis_pos.append(cell_prop.xCentroid)
         else:
             vector_axis_pos.append(cell_prop.yCentroid)
-            
-    count, edges = np.histogram(vector_axis_pos, bins=n_bins, range=(0, img_height))
+    #vector_axis_pos = np.unique(vector_axis_pos)
+
+    count, edges = np.histogram(vector_axis_pos, bins=n_bins, range=(range_start, range_end))
     return count, edges
 
 def get_centroids(cell_props, bbox = None):
