@@ -8,11 +8,14 @@ Created on Tue Mar 26 16:40:04 2024
 
 import numpy as np
 import matplotlib.pyplot as plt
-from quantify_segmentation import get_density_bins
+from quantify_segmentation import get_density_bins, get_joint_expr_per_cell, plot_expressions, filter_joint_cell_expr, get_props_per_cell, get_labels, get_expr_from_labels
 from scipy import stats
 from scipy import ndimage
 from skimage import measure
 import math
+import os
+import pandas as pd
+import cv2
 
 def vertical_center_of_mass(subimage):
     total_intensity = 0
@@ -241,7 +244,17 @@ def get_layer_nuclei_center_of_mass(nuclei_segmentation, subimage_width = 100, f
     layer_nuclei = np.where(combined_mask,nuclei_segmentation,0)
     
     return layer_nuclei
-    
+
+def get_labels_in_y_range(cell_props, width, y_start, y_end, include_y_end=False):
+    """Labels of the cells whose centroid Y falls in [y_start, y_end) - or [y_start, y_end] if
+    include_y_end, for the last bin/half so that bottom_y itself is not left out (get_labels'
+    bbox check is ymin <= yCentroid < ymax)."""
+    bbox_y_end = y_end + 1 if include_y_end else y_end
+    return get_labels(cell_props, bbox=(0, y_start, width, bbox_y_end))
+
+def get_segmentation_with_labels(img_segmentation, labels):
+    """Copy of img_segmentation keeping only the given labels (whole cells), the rest set to 0."""
+    return np.where(np.isin(img_segmentation, labels), img_segmentation, 0)
     
 def plot_nuclei_segmentations(C1_original, C2_original, C3_original, C4_original,\
                               C1_segmentation, C2_segmentation, C3_segmentation, C4_segmentation,\
@@ -337,6 +350,54 @@ def plot_nuclei_segmentations(C1_original, C2_original, C3_original, C4_original
     if path_to_save is not None:
         plt.savefig(path_to_save, dpi=300)
         
+    return fig, ax
+
+
+def plot_nuclei_segmentations_list(list_original, list_segmentation, list_segmentation_match_nuclei,\
+                                    path_to_save, mask_nuclei = None, channel_labels = None):
+    """Generic version of plot_nuclei_segmentations for a variable number of channels (max 4).
+
+    list_original, list_segmentation and list_segmentation_match_nuclei must be lists indexed like
+    C1, C2, C3, (C4). Channel 0 (C1) does not use list_segmentation_match_nuclei (pass None there);
+    its middle slot shows mask_nuclei instead, same as the original fixed-channel function.
+    """
+
+    plt.rcParams["figure.autolayout"] = True
+
+    fig, ax = plt.subplots(2, 6, figsize=(12, 6), sharex=True, sharey=True, layout="constrained")
+
+    n_channels = len(list_original)
+    for i_channel in range(n_channels):
+        base = i_channel * 3
+        label = channel_labels[i_channel] if channel_labels else 'C' + str(i_channel + 1)
+
+        plt.subplot(2, 6, base + 1)
+        plt.imshow(list_original[i_channel], cmap='gray')
+        plt.gca().set_title(label)
+
+        if i_channel == 0:
+            if mask_nuclei is not None:
+                plt.subplot(2, 6, base + 2)
+                plt.imshow(mask_nuclei, cmap='gray')
+                plt.gca().set_title(label + ' - mask for Cs')
+
+            plt.subplot(2, 6, base + 3)
+            plt.imshow(list_segmentation[i_channel], cmap='gist_ncar')
+            plt.gca().set_title(label + ' Seg')
+        else:
+            plt.subplot(2, 6, base + 2)
+            plt.imshow(list_segmentation[i_channel], cmap='gist_ncar')
+            plt.gca().set_title(label + ' Seg')
+
+            plt.subplot(2, 6, base + 3)
+            plt.imshow(list_segmentation_match_nuclei[i_channel], cmap='gist_ncar')
+            plt.gca().set_title(label + ' Seg - masked')
+
+    plt.show()
+
+    if path_to_save is not None:
+        plt.savefig(path_to_save, dpi=300)
+
     return fig, ax
     
 def get_distribution_histograms(cell_props_C1, cell_props_C2, cell_props_C3, cell_props_C4, dims, n_bins=20, path_to_save = None):
@@ -494,6 +555,269 @@ def get_different_fittings(C1_filtered, C2_filtered, C3_filtered, C4_filtered, d
         
     return subimage_widths, C1_list_std_err, C2_list_std_err, C3_list_std_err, C4_list_std_err, C1_list_r_value, C2_list_r_value, C3_list_r_value, C4_list_r_value
 
+
+def get_distribution_histograms_list(list_cell_props, dims, n_bins=20, path_to_save = None, channel_labels = None):
+    """Generic version of get_distribution_histograms for a variable number of channels (max 4)."""
+
+    fig, ax = plt.subplots(2, 2, figsize=(12, 6),
+                           constrained_layout = True)
+
+    list_counts = []
+    list_edges = []
+    for cell_props in list_cell_props:
+        count, edges = get_density_bins(cell_props, dims[1], dims[0], axis=1, n_bins=n_bins)
+        list_counts.append(count)
+        list_edges.append(edges)
+
+    #Plot with the max value of any bin of the nuclei segmentation (C1)
+    max_value_bin = np.max(list_counts[0])
+
+    for i_channel in range(len(list_cell_props)):
+        plt.subplot(2, 2, i_channel + 1)
+        labels_x = [str(x) for x in list_edges[i_channel][:-1]]
+        plt.bar(labels_x, list_counts[i_channel])
+        plt.ylim(0, max_value_bin)
+        plt.gca().set_title(channel_labels[i_channel] if channel_labels else 'C' + str(i_channel + 1))
+
+    plt.show()
+
+    if path_to_save is not None:
+        plt.savefig(path_to_save, dpi=300)
+
+    return list_counts
+
+
+def get_binned_expression_stats(img_segmentation, img_expression, channel_name, top_y, bottom_y, n_bins):
+    """Divides [top_y, bottom_y] into n_bins equal-height Y bins and, for each bin, computes the
+    mean/median across cells of the per-cell expression (median pixel value inside that cell,
+    same convention as get_joint_expr_per_cell) for the cells whose centroid falls in that bin.
+    img_segmentation is the labeled cell image used both for centroids (get_props_per_cell/
+    get_labels) and for masking img_expression per cell (get_expr_from_labels). channel_name is
+    only carried along as a column, so rows stay identifiable once samples get concatenated."""
+    cell_props = get_props_per_cell(img_segmentation)
+    width = img_segmentation.shape[1]
+    bin_edges = np.linspace(top_y, bottom_y, n_bins + 1)
+
+    rows = []
+    for i_bin in range(n_bins):
+        y_start, y_end = bin_edges[i_bin], bin_edges[i_bin + 1]
+        labels_in_bin = get_labels_in_y_range(cell_props, width, y_start, y_end, include_y_end=(i_bin == n_bins - 1))
+        expr_per_cell = get_expr_from_labels(labels_in_bin, img_segmentation, img_expression)
+
+        rows.append({
+            'channel': channel_name, 'bin': i_bin, 'y_start': y_start, 'y_end': y_end, 'n_cells': len(expr_per_cell),
+            'mean_expr': np.mean(expr_per_cell) if expr_per_cell else np.nan,
+            'median_expr': np.median(expr_per_cell) if expr_per_cell else np.nan,
+        })
+    return pd.DataFrame(rows)
+
+
+def plot_binned_expression_boxplots(df_binned_all, folder_out, channels_binned_expr):
+    """Aggregation across samples: for each treatment and each channel in channels_binned_expr
+    ((index, name, n_bins) triplets), using df_binned_all (rows from get_binned_expression_stats plus
+    'sample'/'treatment' columns), one boxplot of the per-sample mean_expr and another of the per-sample
+    median_expr, with one box per Y bin (bin 1 = top_y) - n_bins boxes, which can differ per channel.
+    The same is also done with all the samples together (every treatment), named 'all_samples'.
+    Each point inside a box is one sample. Saves the figures plus the csv with the plotted data in folder_out."""
+    # (name used in the files, name used in the title, rows): one group per treatment, plus all samples together
+    groups = [(treatment, treatment, df_binned_all[df_binned_all['treatment'] == treatment])
+              for treatment in sorted(df_binned_all['treatment'].unique())]
+    groups.append(('all_samples', 'all samples', df_binned_all))
+
+    for group_name, group_title, df_group in groups:
+        for _, channel_name, n_bins in channels_binned_expr:
+            df_sub = df_group[df_group['channel'] == channel_name]
+            if df_sub.empty:
+                continue
+
+            bin_labels = [f'Bin {i + 1}' for i in range(n_bins)]
+            bin_labels[0] += '\n(top)'
+            bin_labels[-1] += '\n(bottom)'
+
+            name_base = f'binned_expression_{group_name}_{channel_name}'
+
+            df_sub.to_csv(os.path.join(folder_out, name_base + '_Fig3d.csv'), index=False)
+
+            for stat_col, stat_name in [('mean_expr', 'mean'), ('median_expr', 'median')]:
+                # samples with no cells in a bin have NaN there - dropped from that box
+                data = [df_sub.loc[df_sub['bin'] == i_bin, stat_col].dropna().values for i_bin in range(n_bins)]
+
+                plt.figure(figsize=(8, 6))
+                plt.boxplot(data, tick_labels=bin_labels)
+                plt.ylim(bottom=0)
+                plt.ylabel(f'{stat_name.capitalize()} of per-cell {channel_name} expression')
+                plt.title(f'{channel_name} - {group_title} ({df_sub["sample"].nunique()} samples)')
+                plt.grid(axis='y', linestyle='--', alpha=0.6)
+                plt.tight_layout()
+                plt.savefig(os.path.join(folder_out, name_base + '_' + stat_name + '_Fig3d_boxplot.png'), dpi=400)
+                plt.close()
+
+
+def draw_dashed_hline(img, y, x_start, x_end, color, thickness, dash_length, gap_length):
+    """Draws a dashed horizontal line (e.g. a layer limit top_y/bottom_y) on img, in place."""
+    x = x_start
+    while x < x_end:
+        x_dash_end = min(x + dash_length, x_end)
+        cv2.line(img, (x, y), (x_dash_end, y), color, thickness)
+        x += dash_length + gap_length
+
+def plot_generate_joint_expression_data(list_channels, list_channels_filtered, C1_segmentation_filtered_layer,\
+                                         c_1, c_2, c_1_limits, c_2_limits, name_1, name_2, ending_norm_expression, sample_name, folder_output_expression,\
+                                         channels_binned_expr, ratio_bin_min, ratio_bin_max, ratio_n_bins,\
+                                         dash_length_px, gap_length_px):
+    """Joint expression of channels c_1/c_2 (0-based indices into list_channels, named name_1/name_2,
+    used for plot labels and file names) (Fig 3) for one sample: scatter plots + csvs (all cells, only
+    positives, cells in both layers and its top/bottom halves), Fig 3F intensity ratio histogram, per-bin
+    expression stats of each channel in channels_binned_expr ((0-based index, name, n_bins) triplets) and
+    rgb debug images with the layer limits drawn as dashed lines. Returns the list of per-channel
+    binned-expression dataframes."""
+
+    limits = np.concatenate([np.array(c_1_limits), np.array(c_2_limits)])
+
+    top_y = np.min(limits)
+    bottom_y = np.max(limits) - 1
+
+    str_ending = '_expr_' + name_1 + '_' + name_2 + ending_norm_expression
+    list_cell_expr1_expr2 = get_joint_expr_per_cell(C1_segmentation_filtered_layer, list_channels[c_1], list_channels[c_2],\
+                                                        list_channels_filtered[c_1], list_channels_filtered[c_2])
+
+    path_base = os.path.join(folder_output_expression, sample_name + str_ending)
+
+    # all cells
+    plot_save_joint_expression(list_cell_expr1_expr2, name_1, name_2, '', path_base + '_all_cells_in_image')
+
+    # only positives
+    filtered_list_cell_expr1_expr2 = filter_joint_cell_expr(list_cell_expr1_expr2)
+    del list_cell_expr1_expr2
+    plot_save_joint_expression(filtered_list_cell_expr1_expr2, name_1, name_2, ' - Only positives', path_base + '_only_positives')
+    del filtered_list_cell_expr1_expr2
+
+    # all in both layers
+    cell_in_both_layers = get_segmentation_filtered_layer(C1_segmentation_filtered_layer, top_y, bottom_y)
+    list_cells_both_layers_expr1_expr2 = get_joint_expr_per_cell(cell_in_both_layers, list_channels[c_1], list_channels[c_2],\
+                                                            list_channels_filtered[c_1], list_channels_filtered[c_2])
+
+    # Fig 3F: per-cell log2(name_2/name_1) intensity ratio histogram (e.g. Bcl11b/Tbr1)
+    plot_intensity_ratio_histogram(list_cells_both_layers_expr1_expr2, name_1, name_2, ratio_bin_min, ratio_bin_max, ratio_n_bins,\
+                                    sample_name, folder_output_expression, str_ending='_ratio_' + name_2 + '_' + name_1 + '_fig3f_partial')
+
+    # all cells in both layers
+    str_ending = '_expr_' + name_1 + '_' + name_2 + ending_norm_expression + '_cells_in_both_layers'
+    path_base = os.path.join(folder_output_expression, sample_name + str_ending)
+    plot_save_joint_expression(list_cells_both_layers_expr1_expr2, name_1, name_2, ' all cells in layers', path_base)
+
+    # cells in both layers, split into top half (bins 1..n/2) and bottom half (bins n/2+1..n)
+    dict_expr_halves = get_joint_expr_per_half(cell_in_both_layers, list_channels, list_channels_filtered, c_1, c_2, top_y, bottom_y)
+    for half_name, list_expr_half in dict_expr_halves.items():
+        title_suffix = ' cells in layers, ' + half_name.replace('_', ' ')
+        plot_save_joint_expression(list_expr_half, name_1, name_2, title_suffix, path_base + '_' + half_name + '_fig3k_partial')
+
+    # Mean/median expression of each channel in channels_binned_expr ((index, name, n_bins) triplets, e.g.
+    # Bcl11b and EdU) in n_bins equal-height Y bins between top_y and bottom_y - one csv per channel.
+    # Also returned, so main() can aggregate them across samples.
+    list_df_binned_expr = []
+    for channel_binned_expr, channel_name_binned_expr, n_bins_binned_expr in channels_binned_expr:
+        if channel_binned_expr is None or channel_binned_expr >= len(list_channels):
+            print(f'Skipping binned expression for {channel_name_binned_expr}: channel index {channel_binned_expr} '
+                  f'not available ({len(list_channels)} channels in {sample_name})')
+            continue
+        df_binned_expr = get_binned_expression_stats(cell_in_both_layers, list_channels[channel_binned_expr], channel_name_binned_expr,\
+                                                      top_y, bottom_y, n_bins_binned_expr)
+        path_binned_expr = os.path.join(folder_output_expression, sample_name + str_ending + '_' + channel_name_binned_expr + '_binned_expression.csv')
+        df_binned_expr.to_csv(path_binned_expr, index=False)
+        list_df_binned_expr.append(df_binned_expr)
+
+    rgb_norm_channels = np.uint8(np.dstack([list_channels[c_2]*255, list_channels[c_1]*255, list_channels[0]*150])) # Nuclear in blue, usually they show BGR pictures
+    cv2.imwrite(os.path.join(folder_output_expression, sample_name + str_ending + '_rgb.png'), cv2.cvtColor(rgb_norm_channels, cv2.COLOR_RGB2BGR))
+
+    rgb_norm_channels_mag = np.uint8(np.dstack([list_channels[c_2]*255, list_channels[c_1]*255, np.zeros_like(list_channels[c_1]) ])) # Nuclear in blue, usually they show BGR pictures
+    cv2.imwrite(os.path.join(folder_output_expression, sample_name + str_ending + '_rgb_mag.png'), cv2.cvtColor(rgb_norm_channels_mag, cv2.COLOR_RGB2BGR))
+
+    rgb_with_lines = rgb_norm_channels.copy()
+    width = rgb_with_lines.shape[1]
+    height = rgb_with_lines.shape[0]
+    print('width:',width,' height',height,' top_y',top_y,' bottom_y',bottom_y)
+    if (not math.isnan(top_y)) and (not math.isnan(bottom_y) and (top_y < height) and (bottom_y < height)):
+        draw_dashed_hline(rgb_with_lines, top_y, 0, width - 1, (255, 255, 255), 2, dash_length_px, gap_length_px)
+        draw_dashed_hline(rgb_with_lines, bottom_y, 0, width - 1, (255, 255, 255), 2, dash_length_px, gap_length_px)
+        cv2.imwrite(os.path.join(folder_output_expression, sample_name + str_ending + '_rgb_lines.png'), cv2.cvtColor(rgb_with_lines, cv2.COLOR_RGB2BGR))
+
+
+    del list_cells_both_layers_expr1_expr2
+
+    return list_df_binned_expr
     
+def get_different_fittings_histogram_list(list_filtered, d_start = 50, d_step = 10, d_end = 120):
+    """Generic version of get_different_fittings_histogram for a variable number of channels: for each subimage
+    width, the std error and r value of the linear fitting of the top cells of each channel (list_filtered: the
+    layer-filtered segmentations). Returns (subimage_widths, list_list_std_err, list_list_r_value), the lists
+    indexed [channel][width]."""
 
+    subimage_widths = np.arange(d_start, d_end+1, d_step)
+    list_list_std_err = [[] for _ in list_filtered]
+    list_list_r_value = [[] for _ in list_filtered]
 
+    for subimage_width in subimage_widths:
+        for i_channel, filtered in enumerate(list_filtered):
+            _, top_cells_xy = get_top_cells_labels(filtered, subimage_width = subimage_width)
+            _, _, top_r_value, _, top_std_err = fit_cells(top_cells_xy)
+            list_list_std_err[i_channel].append(top_std_err)
+            list_list_r_value[i_channel].append(top_r_value)
+
+    return subimage_widths, list_list_std_err, list_list_r_value
+    
+def plot_save_joint_expression(list_cell_expr1_expr2, name_1, name_2, title_suffix, path_base):
+    """Scatter of per-cell expression name_1 (X) vs name_2 (Y) (plot_expressions) saved as path_base + '.png',
+    plus the same data saved as path_base + '.csv', with the channel names in the column headers."""
+    list_expr1 = [mean_exp1 for label, mean_exp1, mean_exp2, pred1, pred2 in list_cell_expr1_expr2]
+    list_expr2 = [mean_exp2 for label, mean_exp1, mean_exp2, pred1, pred2 in list_cell_expr1_expr2]
+    plot_expressions(list_expr1, list_expr2, title_plot = name_1 + ' vs ' + name_2 + title_suffix, label_x = name_1, label_y = name_2)
+    plt.savefig(path_base + '.png', dpi=400)
+    plt.close()
+    columns = ['Label', f'Median_Exp_{name_1}', f'Median_Exp_{name_2}', f'Pred_{name_1}', f'Pred_{name_2}']
+    pd.DataFrame(list_cell_expr1_expr2, columns=columns).to_csv(path_base + '.csv', index=False)
+    
+def plot_intensity_ratio_histogram(list_cell_expr1_expr2, name_1, name_2, bin_min, bin_max, n_bins, sample_name, folder_output_expression, str_ending):
+    """Fig 3F: given list_cell_expr1_expr2 ([label, expr_1, expr_2, pred1, pred2] per cell, e.g.
+    list_cells_both_layers_expr1_expr2 with channel 1 = name_1 (e.g. Tbr1), channel 2 = name_2 (e.g. Bcl11b)),
+    computes the per-cell log2(name_2/name_1) intensity ratio and saves it to csv plus an n_bins histogram
+    over [bin_min, bin_max] - one sample at a time, samples get combined later."""
+    eps = 1e-7
+    col_ratio = f'ratio_log2_{name_2}_{name_1}'
+    rows = []
+    for label, expr_1, expr_2, pred_1, pred_2 in list_cell_expr1_expr2:
+        ratio_log2 = np.log2((expr_2 + eps) / (expr_1 + eps))
+        rows.append({'label': label, f'expr_{name_1}': expr_1, f'expr_{name_2}': expr_2, col_ratio: ratio_log2})
+    df_ratio = pd.DataFrame(rows, columns=['label', f'expr_{name_1}', f'expr_{name_2}', col_ratio])
+
+    path_csv = os.path.join(folder_output_expression, sample_name + str_ending + '.csv')
+    df_ratio.to_csv(path_csv, index=False)
+
+    bin_edges = np.linspace(bin_min, bin_max, n_bins + 1)
+    plt.figure(figsize=(8, 8))
+    plt.hist(df_ratio[col_ratio], bins=bin_edges)
+    plt.xlabel(f'{name_2}/{name_1} (Log2, norm)')
+    plt.ylabel('Density of cells')
+    plt.title(sample_name)
+    plt.savefig(os.path.join(folder_output_expression, sample_name + str_ending + '.png'), dpi=400)
+    plt.close()
+
+    return df_ratio
+    
+def get_joint_expr_per_half(img_segmentation, list_channels, list_channels_filtered, c_1, c_2, top_y, bottom_y):
+    """Splits [top_y, bottom_y] into a top and a bottom half (same as taking bins 1..n/2 and n/2+1..n
+    of get_binned_expression_stats when n is even: 4 bins -> 1-2 / 3-4, 10 bins -> 1-5 / 6-10) and
+    returns the per-cell joint expression (get_joint_expr_per_cell) of the cells whose centroid falls
+    in each half: {'top_half': [...], 'bottom_half': [...]}."""
+    cell_props = get_props_per_cell(img_segmentation)
+    width = img_segmentation.shape[1]
+    mid_y = (top_y + bottom_y) / 2
+
+    halves = {'top_half': (top_y, mid_y, False), 'bottom_half': (mid_y, bottom_y, True)}
+    dict_expr = {}
+    for half_name, (y_start, y_end, include_y_end) in halves.items():
+        labels_half = get_labels_in_y_range(cell_props, width, y_start, y_end, include_y_end=include_y_end)
+        segmentation_half = get_segmentation_with_labels(img_segmentation, labels_half)
+        dict_expr[half_name] = get_joint_expr_per_cell(segmentation_half, list_channels[c_1], list_channels[c_2],\
+                                                       list_channels_filtered[c_1], list_channels_filtered[c_2])
+    return dict_expr
