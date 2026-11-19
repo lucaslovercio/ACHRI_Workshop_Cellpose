@@ -13,6 +13,10 @@ def get_one_channel(img_ndarray):
     if len(img_ndarray.shape)==4: #RGBA
         return img_ndarray[:,:,0,0]
     
+def functionLinearNorm(slice_original_quantile):
+    img_to_return = np.double(slice_original_quantile)
+    img_to_return = np.double(img_to_return - np.min(img_to_return))/np.double(np.max(img_to_return) - np.min(img_to_return))
+    return img_to_return
 
 def functionPercNorm(slice_original_quantile, prob=[0.001, 0.999]): # Wigert et al 2018
     vQuantiles = scipy.stats.mstats.mquantiles(slice_original_quantile, prob=prob, alphap=0.5, betap=0.5)
