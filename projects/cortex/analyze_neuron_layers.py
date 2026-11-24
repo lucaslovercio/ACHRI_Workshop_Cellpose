@@ -712,7 +712,10 @@ def plot_binned_expression_boxplots(df_binned_all, folder_out, binned_rows):
                 data = [df_sub.loc[df_sub['bin'] == i_bin, stat_col].dropna().values for i_bin in range(n_bins)]
 
                 plt.figure(figsize=(8, 6))
-                plt.boxplot(data, tick_labels=bin_labels)
+                # Bin labels with xticks (boxes at x = 1..n_bins), not with boxplot's keyword: it is tick_labels from
+                # matplotlib 3.9 and labels before (removed in 3.11), so this works with any matplotlib version
+                plt.boxplot(data)
+                plt.xticks(range(1, n_bins + 1), bin_labels)
                 plt.ylim(bottom=0)
                 plt.ylabel(f'{stat_name.capitalize()} of per-cell {channel_name} expression')
                 plt.title(f'{channel_name} in the layers of {layers_name.replace("_and_", " and ")} - {group_title} ({df_sub["sample"].nunique()} samples)')
@@ -720,7 +723,6 @@ def plot_binned_expression_boxplots(df_binned_all, folder_out, binned_rows):
                 plt.tight_layout()
                 plt.savefig(os.path.join(folder_out, name_base + '_' + stat_name + '_Fig3d_boxplot.png'), dpi=400)
                 plt.close()
-
 
 def keep_sample_table(dict_tables, path_csv, sample_name, df_table):
     """If dict_tables is not None, keeps df_table (the per-sample csv path_csv, whose file name is sample_name +
