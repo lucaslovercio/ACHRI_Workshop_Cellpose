@@ -9,10 +9,16 @@ Tab "Images and channels":
   - Choose the folder with the images: every .tif/.tiff in it is listed, and next to each one the
     user writes its treatment (e.g. WT, KO). The first tiff must be multipage (one page per channel).
   - Preview of the (up to 4) channels of the first tiff, with a name box under each one. Channels named
-    DAPI, SATB2, BCL11B or TBR1 (any case) are layer channels, each segmented with its own model.
-    A channel named EdU is also segmented with its own model (outputs ending in _comment8).
-  - Which two channels (any but DAPI) are plotted against each other (joint expression).
-  - Binned expression: one row per channel ("+" adds a row), with its number of Y bins.
+    DAPI, SATB2, BCL11B, TBR1, MRNA-BCL11B or MRNA-TBR1 (any case) are layer channels, each segmented with its
+    own model (the mRNAs as the proteins: layer delineation, edge fitting, joint expression).
+    A channel named EdU (POSITIVES_MODEL_FILES) is segmented with its own model of positive cells (comment 8,
+    outputs ending in _comment8), without layer delineation. Any other name has no segmentation.
+  - Joint expression pairs: one row per pair of channels (any but DAPI) plotted against each other, X and Y
+    ("+" adds a row). Each pair has all its outputs (scatter plots, Fig 3F ratio Y/X, Fig 3K halves, rgb
+    images) and csvs.
+  - Binned expression: one row per channel to bin ("+" adds a row), with its number of Y bins and the layer
+    channel(s) whose layers give the range of the bins: the first one is required, the second one optional
+    (empty: only the layer of the first one, e.g. the channel's own layer or DAPI's).
   - The models folder (with the Models_for_layer_delineation and Models_EdU subfolders); each model is
     found by name.
 Tab "Optional parameters": the rest of the parameters, with the defaults of script_analyze_layers.py.
@@ -102,9 +108,8 @@ class AnalyzeLayersGUI:
         self.channel_name_entries = []
         self.preview_labels = []
         self.preview_photos = [None] * MAX_CHANNELS  # keep references, or Tk drops the images
-        self.joint_x_var = tk.StringVar()
-        self.joint_y_var = tk.StringVar()
-        self.binned_rows = []  # [(frame, name_var, n_bins_var)]
+        self.pair_rows = []  # [(frame, x_name_var, y_name_var)]
+        self.binned_rows = []  # [(frame, name_var, n_bins_var, layer_1_var, layer_2_var)]
         self.models_folder_var = tk.StringVar()
         self.models_status_var = tk.StringVar(value='Choose the folder with the Models_for_layer_delineation and Models_EdU subfolders.')
         self.optional_vars = {}
@@ -164,24 +169,32 @@ class AnalyzeLayersGUI:
             entry.pack(side='left', padx=2)
             self.channel_name_entries.append(entry)
         ttk.Label(frame_channels, foreground='gray', wraplength=4 * PREVIEW_SIZE,
-                  text=f'Layer channels, each segmented with its own model: {", ".join(fig3.LAYER_MODEL_FILES)} (any case; '
-                       'one channel must be DAPI). Other names (e.g. EdU, an mRNA) have no layer segmentation: they are only quantified in the DAPI cells. '
-                       f'A channel named EdU is also segmented with its own model (outputs ending in {fig3.ENDING_EDU_OUTPUTS}, in the expression folder).'
+                  text=f'Layer channels, each segmented with its own model and with layer delineation: {", ".join(fig3.LAYER_MODEL_FILES)} '
+                       '(any case; one channel must be DAPI). '
+                       f'{", ".join(fig3.POSITIVES_MODEL_FILES)} (any case): segmented with its own model of positive cells, without layer delineation '
+                       f'(comment 8: outputs ending in {fig3.ENDING_EDU_OUTPUTS}, in the expression folder). '
+                       'Any other name has no segmentation: it is only quantified in the DAPI cells.'
                   ).grid(row=1, column=0, columnspan=MAX_CHANNELS, sticky='w', pady=(4, 0))
 
-        frame_roles = ttk.LabelFrame(right, text='Joint expression (channels other than DAPI)', padding=4)
-        frame_roles.pack(fill='x', pady=8)
-        for row, (text, var) in enumerate([('X axis (ratio denominator):', self.joint_x_var),
-                                           ('Y axis (ratio numerator):', self.joint_y_var)]):
-            ttk.Label(frame_roles, text=text).grid(row=row, column=0, sticky='w')
-            self.make_channel_combobox(frame_roles, var, exclude_dapi=True).grid(row=row, column=1, sticky='w', padx=4, pady=1)
+        frame_pairs = ttk.LabelFrame(right, text='Joint expression pairs (channels other than DAPI): scatter plots, Fig 3F ratio Y/X, Fig 3K', padding=4)
+        frame_pairs.pack(fill='x', pady=8)
+        header = ttk.Frame(frame_pairs)
+        header.pack(fill='x')
+        ttk.Label(header, text='X axis', width=16).pack(side='left')
+        ttk.Label(header, text='Y axis', width=16).pack(side='left', padx=(8, 0))
+        ttk.Button(header, text='+', width=3, command=self.add_pair_row).pack(side='right')
+        self.pairs_container = ttk.Frame(frame_pairs)
+        self.pairs_container.pack(fill='x')
 
-        frame_binned = ttk.LabelFrame(right, text='Binned expression (mean/median per Y bin, boxplots per treatment)', padding=4)
+        frame_binned = ttk.LabelFrame(right, text='Binned expression (mean/median per Y bin, between the layer limits of 1 or 2 layer '
+                                                  'channels; boxplots per treatment)', padding=4)
         frame_binned.pack(fill='x')
         header = ttk.Frame(frame_binned)
         header.pack(fill='x')
         ttk.Label(header, text='Channel', width=16).pack(side='left')
         ttk.Label(header, text='N bins', width=8).pack(side='left')
+        ttk.Label(header, text='Layers of', width=16).pack(side='left', padx=(8, 0))
+        ttk.Label(header, text='and of (optional)', width=16).pack(side='left', padx=(8, 0))
         ttk.Button(header, text='+', width=3, command=self.add_binned_row).pack(side='right')
         self.binned_container = ttk.Frame(frame_binned)
         self.binned_container.pack(fill='x')
@@ -219,13 +232,17 @@ class AnalyzeLayersGUI:
         self.log_text = tk.Text(frame, height=12, state='disabled', wrap='word')
         self.log_text.pack(fill='both', expand=True, pady=(4, 0))
 
-    def make_channel_combobox(self, parent, var, width=14, exclude_dapi=False):
-        """Combobox with the channel names entered so far (refreshed when opened), without DAPI if exclude_dapi."""
+    def make_channel_combobox(self, parent, var, width=14, exclude_dapi=False, only_layers=False, allow_empty=False):
+        """Combobox with the channel names entered so far (refreshed when opened): without DAPI if exclude_dapi, only
+        the layer channels (fig3.LAYER_MODEL_FILES, the ones with layer delineation) if only_layers, and with an empty
+        first option (to leave it unset) if allow_empty."""
         def get_values():
             names = self.get_channel_names_list()
             if exclude_dapi:
                 names = [n for n in names if fig3.get_layer_key(n) != 'DAPI']
-            return names
+            if only_layers:
+                names = [n for n in names if fig3.get_layer_key(n)]
+            return ([''] if allow_empty else []) + names
         combobox = ttk.Combobox(parent, textvariable=var, state='readonly', width=width)
         combobox.configure(postcommand=lambda c=combobox: c.configure(values=get_values()))
         return combobox
@@ -301,27 +318,46 @@ class AnalyzeLayersGUI:
         missing = [key for key in fig3.LAYER_MODEL_FILES if key not in found]
         status = 'Layer models found: ' + (', '.join(found) if found else 'none')
         if missing:
-            status += f'  |  missing in {fig3.SUBFOLDER_LAYER_MODELS}: ' + ', '.join(fig3.LAYER_MODEL_FILES[key] for key in missing)
-        if os.path.exists(fig3.get_edu_model_path(folder)):
-            status += '  |  EdU model found'
-        else:
-            status += f'  |  EdU model missing ({fig3.SUBFOLDER_EDU_MODEL}/{fig3.EDU_MODEL_FILE}), needed only if a channel is named EdU'
+            # each file once (both mRNAs share one)
+            status += f'  |  missing in {fig3.SUBFOLDER_LAYER_MODELS}: ' + ', '.join(dict.fromkeys(fig3.get_layer_model_file(key) for key in missing))
+        found = [key for key in fig3.POSITIVES_MODEL_FILES if os.path.exists(fig3.get_positives_model_path(folder, key))]
+        missing = [key for key in fig3.POSITIVES_MODEL_FILES if key not in found]
+        status += '  |  Positives models found: ' + (', '.join(found) if found else 'none')
+        if missing:
+            status += (f'  |  missing in {fig3.SUBFOLDER_EDU_MODEL} (needed only if a channel has that name): '
+                       + ', '.join(f'{key} ({fig3.POSITIVES_MODEL_FILES[key]})' for key in missing))
         self.models_status_var.set(status)
+
+    def add_pair_row(self):
+        frame = ttk.Frame(self.pairs_container)
+        frame.pack(fill='x', pady=1)
+        x_name_var = tk.StringVar()
+        y_name_var = tk.StringVar()
+        self.make_channel_combobox(frame, x_name_var, exclude_dapi=True).pack(side='left')
+        self.make_channel_combobox(frame, y_name_var, exclude_dapi=True).pack(side='left', padx=8)
+        row = (frame, x_name_var, y_name_var)
+        ttk.Button(frame, text='-', width=3, command=lambda: self.remove_row(self.pair_rows, row)).pack(side='left')
+        self.pair_rows.append(row)
 
     def add_binned_row(self):
         frame = ttk.Frame(self.binned_container)
         frame.pack(fill='x', pady=1)
         name_var = tk.StringVar()
         n_bins_var = tk.StringVar(value='4')
+        layer_1_var = tk.StringVar()
+        layer_2_var = tk.StringVar()
         self.make_channel_combobox(frame, name_var).pack(side='left')
         ttk.Spinbox(frame, from_=1, to=100, textvariable=n_bins_var, width=6).pack(side='left', padx=8)
-        row = (frame, name_var, n_bins_var)
-        ttk.Button(frame, text='-', width=3, command=lambda: self.remove_binned_row(row)).pack(side='left')
+        self.make_channel_combobox(frame, layer_1_var, only_layers=True).pack(side='left', padx=(8, 0))
+        self.make_channel_combobox(frame, layer_2_var, only_layers=True, allow_empty=True).pack(side='left', padx=8)
+        row = (frame, name_var, n_bins_var, layer_1_var, layer_2_var)
+        ttk.Button(frame, text='-', width=3, command=lambda: self.remove_row(self.binned_rows, row)).pack(side='left')
         self.binned_rows.append(row)
 
-    def remove_binned_row(self, row):
+    def remove_row(self, rows, row):
+        """Removes row (its frame is row[0]) from the panel and from rows (self.pair_rows or self.binned_rows)."""
         row[0].destroy()
-        self.binned_rows.remove(row)
+        rows.remove(row)
 
     def restore_optional_defaults(self):
         defaults = fig3.AnalyzeLayersConfig.__dataclass_fields__
@@ -410,12 +446,14 @@ class AnalyzeLayersGUI:
                 raise ValueError(f'Channel name "{name}" is used twice.')
             name_to_number[name] = i + 1
 
-        for role, name in {'joint expression X': self.joint_x_var.get(), 'joint expression Y': self.joint_y_var.get()}.items():
-            if name not in name_to_number:
-                raise ValueError(f'Choose the {role} channel (it must be one of the named channels).')
+        pairs_joint_expression = []
+        for _, x_name_var, y_name_var in self.pair_rows:
+            if x_name_var.get() not in name_to_number or y_name_var.get() not in name_to_number:
+                raise ValueError('Choose the X and Y channels of every joint expression pair (or remove the row with "-").')
+            pairs_joint_expression.append((name_to_number[x_name_var.get()], name_to_number[y_name_var.get()]))
 
         channels_binned_expression = []
-        for _, name_var, n_bins_var in self.binned_rows:
+        for _, name_var, n_bins_var, layer_1_var, layer_2_var in self.binned_rows:
             name = name_var.get()
             if name not in name_to_number:
                 raise ValueError('Choose the channel of every binned expression row (or remove the row with "-").')
@@ -424,7 +462,14 @@ class AnalyzeLayersGUI:
                 assert n_bins >= 1
             except (ValueError, AssertionError):
                 raise ValueError(f'Number of bins of {name} must be an integer >= 1.')
-            channels_binned_expression.append((name_to_number[name], name, n_bins))
+            if layer_1_var.get() not in name_to_number:
+                raise ValueError(f'Binned expression of {name}: choose the layer channel whose layer gives the range of the bins '
+                                 '("Layers of"; "and of" is optional).')
+            # Second layer channel optional: empty (or a name that is not there anymore) -> None
+            layer_number_2 = name_to_number.get(layer_2_var.get()) if layer_2_var.get() else None
+            if layer_2_var.get() and layer_number_2 is None:
+                raise ValueError(f'Binned expression of {name}: choose the second layer channel again (or leave it empty).')
+            channels_binned_expression.append((name_to_number[name], name, n_bins, name_to_number[layer_1_var.get()], layer_number_2))
 
         if not self.models_folder_var.get():
             raise ValueError('Choose the models folder.')
@@ -442,12 +487,11 @@ class AnalyzeLayersGUI:
         config = fig3.AnalyzeLayersConfig(
             folder_root=self.folder_var.get(), tiffs_name=list(self.tiff_names), tiffs_treatment=treatments,
             channel_names={number: name for name, number in name_to_number.items()},
-            channel_1_number=name_to_number[self.joint_x_var.get()],
-            channel_2_number=name_to_number[self.joint_y_var.get()],
+            pairs_joint_expression=pairs_joint_expression,
             channels_binned_expression=channels_binned_expression,
             folder_models=self.models_folder_var.get(),
             **optional)
-        # DAPI named, layer channels used once, joint expression channels, models present for the named layer channels
+        # DAPI named, layer and positives channels used once, joint expression pairs, models present for the named channels
         try:
             fig3.validate_config(config)
         except FileNotFoundError as e:
@@ -512,3 +556,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

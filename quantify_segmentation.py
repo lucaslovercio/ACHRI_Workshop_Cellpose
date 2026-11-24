@@ -417,7 +417,7 @@ def get_expr_from_labels(labels, img_segmentation,img_expression, flag_use_media
 
     return list_cell_expr
 
-def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, img_segmentation_channel1, img_segmentation_channel2):
+def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, img_segmentation_channel1, img_segmentation_channel2, flag_use_median=True):
     
     regions = measure.regionprops(img_segmentation)
     list_cell_expr = []
@@ -429,9 +429,15 @@ def get_joint_expr_per_cell(img_segmentation, img_expression1, img_expression2, 
         masked_expression2 = img_expression2[binary_image > 0]
         masked_pred1 = img_segmentation_channel1[binary_image > 0]
         masked_pred2 = img_segmentation_channel2[binary_image > 0]
-        
-        mean_exp1 = np.median(masked_expression1) #mean can be used too
-        mean_exp2 = np.median(masked_expression2)
+
+        if flag_use_median:
+            mean_exp1 = np.median(masked_expression1) #mean can be used too
+            mean_exp2 = np.median(masked_expression2)
+            
+        else:
+            mean_exp1 = np.mean(masked_expression1) #mean can be used too
+            mean_exp2 = np.mean(masked_expression2)
+
         pred1 = np.int8(np.median(masked_pred1>0)) #is more classified as class 1?
         pred2 = np.int8(np.median(masked_pred2>0)) #is more classified as class 2?
         
